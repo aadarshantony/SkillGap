@@ -30,8 +30,14 @@ export function LoginPage() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
-  const { setAuth } = useAuthStore();
+  const { user, setAuth } = useAuthStore();
   const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (user) {
+      navigate(user.role === 'employer' ? '/employer' : '/dashboard', { replace: true });
+    }
+  }, [user, navigate]);
 
   const fillDemo = (email) => setForm({ email, password: 'password123' });
 
@@ -91,10 +97,10 @@ export function LoginPage() {
           <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-3)', marginBottom: '0.75rem' }}>Quick Demo Access</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {[
-              { email: 'arjun@email.com', label: 'Arjun Mehta', sub: 'Learner — Full-Stack Dev', icon: User, color: 'var(--blue)' },
-              { email: 'meera@email.com', label: 'Meera Krishnan', sub: 'Learner — Data Science', icon: User, color: 'var(--green)' },
-              { email: 'riya@techcorp.in', label: 'Riya Sharma', sub: 'Employer — TechCorp India', icon: Building2, color: 'var(--accent)' },
-              { email: 'vikram@retailmax.in', label: 'Vikram Nair', sub: 'Employer — RetailMax', icon: Building2, color: 'var(--amber)' },
+              { email: 'ananya.hr@email.com', label: 'Ananya Varma', sub: 'Learner — HR Specialist', icon: User, color: 'var(--blue)' },
+              { email: 'arjun.tech@email.com', label: 'Arjun Mehta', sub: 'Learner — Tech & Full Stack', icon: User, color: 'var(--green)' },
+              { email: 'sunita@apexcorp.com', label: 'Sunita Rao', sub: 'Employer — Apex Global', icon: Building2, color: 'var(--accent)' },
+              { email: 'karan@techspark.io', label: 'Karan Malhotra', sub: 'Employer — TechSpark Systems', icon: Building2, color: 'var(--amber)' },
             ].map(({ email, label, sub, icon: Icon, color }) => (
               <button key={email} type="button"
                 onClick={() => fillDemo(email)}
@@ -120,8 +126,14 @@ export function SignupPage() {
   const [form, setForm] = useState({ name: '', email: '', password: '', role: '', companyName: '' });
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
-  const { setAuth } = useAuthStore();
+  const { user, setAuth } = useAuthStore();
   const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (user) {
+      navigate(user.role === 'employer' ? '/employer' : '/dashboard', { replace: true });
+    }
+  }, [user, navigate]);
 
   const submit = async (e) => {
     e.preventDefault();

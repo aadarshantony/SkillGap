@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { skillsApi, pathsApi } from '../../api';
 import { useAuthStore } from '../../store/authStore';
 import { MarketPulseChart } from '../../components/charts/Charts';
@@ -19,6 +19,7 @@ const GAP_TYPE_CONFIG = {
 const PROF_ORDER = { beginner: 1, intermediate: 2, advanced: 3, expert: 4 };
 
 export default function LearnerDashboard() {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const [demandSkills, setDemandSkills] = useState([]);
@@ -49,10 +50,14 @@ export default function LearnerDashboard() {
     }).then(r => r.data),
     onSuccess: (data) => {
       qc.invalidateQueries(['my-paths']);
-      if (data.existing) {
-        toast('Path already exists! View it in My Paths.', { icon: '📚' });
-      } else {
-        toast.success(`Learning path for ${data.path?.skillName} created!`);
+      const pathId = data.path?._id;
+      if (pathId) {
+        if (data.existing) {
+          toast('Opening active path...', { icon: '📚' });
+        } else {
+          toast.success(`Learning path for ${data.path?.skillName} created!`);
+        }
+        navigate(`/paths/${pathId}`);
       }
     },
     onError: (err) => toast.error(err.response?.data?.error || 'Failed to generate path'),
@@ -129,7 +134,7 @@ export default function LearnerDashboard() {
                   </div>
                   <BarChart2 size={16} color="var(--text-3)" />
                 </div>
-                <MarketPulseChart data={chartData} skills={demandSkills} />
+                <MarketPulseChart data={demandData?.data || []} selectedSkills={demandSkills} />
                 {/* Skill selector */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '1rem' }}>
                   {gaps.slice(0, 8).map(g => (
@@ -264,8 +269,12 @@ export default function LearnerDashboard() {
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Award size={15} /> My Credentials</span>
               <ChevronRight size={14} />
             </Link>
-            <Link to="/jobs" className="btn btn-ghost" style={{ justifyContent: 'space-between' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Target size={15} /> Browse Jobs</span>
+            <Link to="/applied" className="btn btn-ghost" style={{ justifyContent: 'space-between' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Target size={15} /> Applied Jobs</span>
+              <ChevronRight size={14} />
+            </Link>
+            <Link to="/market-pulse" className="btn btn-ghost" style={{ justifyContent: 'space-between' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><TrendingUp size={15} /> Market Pulse</span>
               <ChevronRight size={14} />
             </Link>
           </div>

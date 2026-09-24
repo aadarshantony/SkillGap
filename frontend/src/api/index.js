@@ -44,11 +44,12 @@ export const profileApi = {
 
 // ─── Jobs ─────────────────────────────────────────────────────────────────────
 export const jobsApi = {
-  getEmployerJobs: (params) => api.get('/jobs/employer', { params }),
-  getPublicJobs:   (params) => api.get('/jobs/public', { params }),
-  getJob:          (type, id) => api.get(`/jobs/${type}/${id}`),
-  postJob:         (data)   => api.post('/jobs', data),
-  apply:           (type, id) => api.post(`/jobs/${type}/${id}/apply`),
+  getEmployerJobs:   (params)     => api.get('/jobs/employer', { params }),
+  getPublicJobs:     (params)     => api.get('/jobs/public', { params }),
+  getJob:            (type, id)   => api.get(`/jobs/${type}/${id}`),
+  postJob:           (data)       => api.post('/jobs', data),
+  apply:             (type, id)   => api.post(`/jobs/${type}/${id}/apply`),
+  getMyApplications: ()           => api.get('/jobs/my/applications'),
 };
 
 // ─── Skills ──────────────────────────────────────────────────────────────────
@@ -60,24 +61,26 @@ export const skillsApi = {
 
 // ─── Learning Paths ───────────────────────────────────────────────────────────
 export const pathsApi = {
-  getAll:         ()           => api.get('/paths'),
-  getOne:         (id)         => api.get(`/paths/${id}`),
-  generate:       (data)       => api.post('/paths/generate', data),
-  completeStep:   (id, order)  => api.patch(`/paths/${id}/step/${order}`),
-  getTest:        (id)         => api.get(`/paths/${id}/test`),
-  submitCheckpoint: (id, data) => api.post(`/paths/${id}/checkpoint`, data),
+  getAll:           ()             => api.get('/paths'),
+  getOne:           (id)           => api.get(`/paths/${id}`),
+  generate:         (data)         => api.post('/paths/generate', data),
+  completeStep:     (id, order)    => api.patch(`/paths/${id}/step/${order}`),
+  getTest:          (id, fresh = false, count = 8) => api.get(`/paths/${id}/test`, { params: { fresh: fresh ? 'true' : undefined, count } }),
+  submitCheckpoint: (id, data)     => api.post(`/paths/${id}/checkpoint`, data),
 };
 
 // ─── Credentials ─────────────────────────────────────────────────────────────
 export const credentialsApi = {
-  getMine:  ()     => api.get('/credentials'),
-  getBySlug: (slug) => api.get(`/credentials/${slug}`),
+  getMine:   ()      => api.get('/credentials'),
+  getBySlug: (slug)  => api.get(`/credentials/${slug}`),
 };
 
 // ─── Employer ─────────────────────────────────────────────────────────────────
 export const employerApi = {
-  getMyJobs:       ()       => api.get('/employer/jobs'),
-  getCandidates:   (params) => api.get('/employer/candidates', { params }),
-  getCandidate:    (id)     => api.get(`/employer/candidates/${id}`),
-  getHeatmap:      (params) => api.get('/employer/heatmap', { params }),
+  getMyJobs:        ()        => api.get('/employer/jobs'),
+  getApplicants:    (jobId)   => api.get(`/employer/applicants/${jobId}`),
+  getApplicant:     (jobId, userId) => api.get(`/employer/applicants/${jobId}/candidate/${userId}`),
+  getAnalytics:     ()        => api.get('/employer/analytics'),
+  getTalentPool:    (params)  => api.get('/employer/talent', { params }),
+  updateJob:        (jobId, data) => api.patch(`/employer/jobs/${jobId}`, data),
 };

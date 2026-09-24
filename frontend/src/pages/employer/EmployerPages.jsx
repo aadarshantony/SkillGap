@@ -1,19 +1,18 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { employerApi, jobsApi } from '../../api';
-import { HeatmapChart } from '../../components/charts/Charts';
 import toast from 'react-hot-toast';
-import { Users, BarChart2, Briefcase, PlusSquare, Award, ChevronRight, CheckCircle, ExternalLink, Zap } from 'lucide-react';
+import { Users, BarChart2, Briefcase, PlusSquare, Award, ChevronRight, CheckCircle, ExternalLink, Zap, X, MapPin, TrendingUp, ArrowUpRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 
 // ─── Employer Dashboard / Overview ───────────────────────────────────────────
 export function EmployerDashboard() {
   const { data: jobsData } = useQuery({ queryKey: ['employer-jobs'], queryFn: () => employerApi.getMyJobs().then(r => r.data) });
-  const { data: candData } = useQuery({ queryKey: ['employer-candidates'], queryFn: () => employerApi.getCandidates({}).then(r => r.data) });
+  const { data: analyticsData } = useQuery({ queryKey: ['employer-analytics'], queryFn: () => employerApi.getAnalytics().then(r => r.data) });
 
   const jobs = jobsData?.jobs || [];
-  const candidates = candData?.candidates || [];
+  const analytics = analyticsData?.summary || {};
 
   return (
     <div className="animate-in" style={{ maxWidth: 1000 }}>
@@ -23,11 +22,12 @@ export function EmployerDashboard() {
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
         {[
-          { label: 'Active Jobs', value: jobs.filter(j => j.active).length, icon: Briefcase, color: 'var(--accent)' },
-          { label: 'Matched Candidates', value: candidates.length, icon: Users, color: 'var(--green)' },
-          { label: 'Verified Skills on File', value: candidates.reduce((a, c) => a + (c.credentials?.length || 0), 0), icon: Award, color: 'var(--blue)' },
+          { label: 'Active Jobs', value: analytics.activeJobs ?? jobs.filter(j => j.active).length, icon: Briefcase, color: 'var(--accent)' },
+          { label: 'Total Applicants', value: analytics.totalApplicants ?? 0, icon: Users, color: 'var(--green)' },
+          { label: 'Pending Tests', value: analytics.pendingTest ?? 0, icon: Zap, color: 'var(--amber)' },
+          { label: 'Avg Match Score', value: analytics.avgMatchScore ? `${analytics.avgMatchScore}%` : '—', icon: Award, color: 'var(--blue)' },
         ].map(s => (
           <div key={s.label} className="card">
             <div className="card-body" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -55,12 +55,12 @@ export function EmployerDashboard() {
             <ChevronRight size={16} color="var(--text-3)" style={{ marginLeft: 'auto' }} />
           </div>
         </Link>
-        <Link to="/employer/candidates" className="card card-hover" style={{ textDecoration: 'none' }}>
+        <Link to="/employer/applicants" className="card card-hover" style={{ textDecoration: 'none' }}>
           <div className="card-body" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
             <Users size={20} color="var(--green)" />
             <div>
-              <div style={{ fontWeight: 600 }}>Browse Candidates</div>
-              <div style={{ fontSize: '0.8125rem', color: 'var(--text-3)' }}>Filtered by verified skills</div>
+              <div style={{ fontWeight: 600 }}>View Applicants</div>
+              <div style={{ fontSize: '0.8125rem', color: 'var(--text-3)' }}>See who applied per job</div>
             </div>
             <ChevronRight size={16} color="var(--text-3)" style={{ marginLeft: 'auto' }} />
           </div>
@@ -81,13 +81,14 @@ export function EmployerDashboard() {
               <div>
                 <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{job.title}</div>
                 <div style={{ fontSize: '0.8125rem', color: 'var(--text-3)' }}>
-                  {job.location} · {job.requirements?.length} skill requirements · {format(new Date(job.createdAt), 'MMM d')}
+                  {job.location} · {job.requirements?.length} skills · {format(new Date(job.createdAt), 'MMM d')}
+                  {job.applicantCount > 0 && <span style={{ marginLeft: '0.75rem', color: 'var(--accent)' }}>{job.applicantCount} applicant{job.applicantCount !== 1 ? 's' : ''}</span>}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <span className={`badge ${job.active ? 'badge-green' : 'badge-muted'}`}>{job.active ? 'Active' : 'Closed'}</span>
-                <Link to="/employer/candidates" className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <Users size={13} /> Candidates
+                <Link to={`/employer/applicants?job=${job._id}`} className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <Users size={13} /> Applicants
                 </Link>
               </div>
             </div>
@@ -127,7 +128,7 @@ export function PostJobPage() {
         requirements: form.requirements.filter(r => r.skillName),
       });
       qc.invalidateQueries(['employer-jobs']);
-      toast.success('Job posted successfully! Candidates are being matched.');
+      toast.success('Job posted successfully! Candidates can now apply.');
       navigate('/employer');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Could not post job');
@@ -141,11 +142,10 @@ export function PostJobPage() {
       <div style={{ marginBottom: '2rem' }}>
         <div className="label" style={{ marginBottom: '0.4rem' }}>Hiring</div>
         <h1 className="display-lg">Post a <span className="accent-mark">Job</span></h1>
-        <p style={{ color: 'var(--text-2)', marginTop: '0.5rem' }}>Structured requirements unlock verified-skill matching.</p>
+        <p style={{ color: 'var(--text-2)', marginTop: '0.5rem' }}>Structured skill requirements unlock verified-skill matching.</p>
       </div>
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        {/* Basic */}
         <div className="card">
           <div className="card-body">
             <div className="display-sm" style={{ fontSize: '0.85rem', marginBottom: '1rem' }}>Job Details</div>
@@ -193,7 +193,7 @@ export function PostJobPage() {
                 <label className="input-label">Industry</label>
                 <select id="job-industry" className="input" value={form.industry} onChange={e => setForm(f => ({ ...f, industry: e.target.value }))}>
                   <option value="">Select industry</option>
-                  {['Technology', 'Healthcare', 'Retail', 'Logistics', 'Hospitality', 'Finance', 'Construction', 'Marketing'].map(i => <option key={i}>{i}</option>)}
+                  {['Technology', 'Healthcare', 'Finance', 'Banking', 'Education', 'Retail', 'Logistics', 'Hospitality', 'Construction', 'Manufacturing', 'Marketing', 'Legal'].map(i => <option key={i}>{i}</option>)}
                 </select>
               </div>
               <div className="input-group">
@@ -205,7 +205,6 @@ export function PostJobPage() {
           </div>
         </div>
 
-        {/* Requirements */}
         <div className="card">
           <div className="card-body">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -237,7 +236,7 @@ export function PostJobPage() {
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
           <Link to="/employer" className="btn btn-ghost">Cancel</Link>
           <button id="post-job-submit" type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? <><span className="spinner" /> Posting…</> : <><Zap size={15} /> Post Job</>}
+            {loading ? <><span className="spinner" />Posting…</> : <><Zap size={15} />Post Job</>}
           </button>
         </div>
       </form>
@@ -245,98 +244,117 @@ export function PostJobPage() {
   );
 }
 
-// ─── Candidates Page ──────────────────────────────────────────────────────────
-export function CandidatesPage() {
-  const [selectedId, setSelectedId] = useState(null);
-  const [minScore, setMinScore] = useState(0);
+// ─── Applicants Page (per-job) ────────────────────────────────────────────────
+export function ApplicantsPage() {
+  const [selectedJobId, setSelectedJobId] = useState(null);
+  const [selectedApplicant, setSelectedApplicant] = useState(null);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['employer-candidates', minScore],
-    queryFn: () => employerApi.getCandidates({ minScore }).then(r => r.data),
+  const { data: jobsData, isLoading: jobsLoading } = useQuery({
+    queryKey: ['employer-jobs'],
+    queryFn: () => employerApi.getMyJobs().then(r => r.data),
   });
 
-  const { data: detailData } = useQuery({
-    queryKey: ['candidate-detail', selectedId],
-    queryFn: () => selectedId ? employerApi.getCandidate(selectedId).then(r => r.data) : null,
-    enabled: !!selectedId,
+  const { data: applicantsData, isLoading: appsLoading } = useQuery({
+    queryKey: ['job-applicants', selectedJobId],
+    queryFn: () => selectedJobId ? employerApi.getApplicants(selectedJobId).then(r => r.data) : null,
+    enabled: !!selectedJobId,
   });
 
-  const candidates = data?.candidates || [];
+  const jobs = jobsData?.jobs || [];
+  const applicants = applicantsData?.applicants || [];
+  const selectedJob = applicantsData?.job;
+
+  // Auto-select first job
+  React.useEffect(() => {
+    if (jobs.length > 0 && !selectedJobId) setSelectedJobId(jobs[0]._id);
+  }, [jobs]);
 
   return (
     <div className="animate-in" style={{ maxWidth: 1100 }}>
       <div style={{ marginBottom: '2rem' }}>
-        <div className="label" style={{ marginBottom: '0.4rem' }}>Talent Pool</div>
-        <h1 className="display-lg">Verified <span className="accent-mark">Candidates</span></h1>
-        <p style={{ color: 'var(--text-2)', marginTop: '0.5rem' }}>Sorted by match score against your open roles. Only verified skills shown.</p>
+        <div className="label" style={{ marginBottom: '0.4rem' }}>Talent Pipeline</div>
+        <h1 className="display-lg">Job <span className="accent-mark">Applicants</span></h1>
+        <p style={{ color: 'var(--text-2)', marginTop: '0.5rem' }}>See verified candidates who applied for each specific role.</p>
       </div>
 
-      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', alignItems: 'center' }}>
-        <label style={{ fontSize: '0.8125rem', color: 'var(--text-3)' }}>Min match:</label>
-        {[0, 40, 60, 80].map(s => (
-          <button key={s} className={`btn btn-sm ${minScore === s ? 'btn-outline' : 'btn-ghost'}`}
-            onClick={() => setMinScore(s)}>{s === 0 ? 'Any' : `${s}%+`}</button>
-        ))}
+      {/* Job selector */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1.5rem' }}>
+        {jobsLoading ? (
+          [...Array(3)].map((_, i) => <div key={i} className="skeleton" style={{ width: 160, height: 36, borderRadius: 'var(--radius)' }} />)
+        ) : jobs.length === 0 ? (
+          <div style={{ fontSize: '0.875rem', color: 'var(--text-3)' }}>No jobs posted yet. <Link to="/employer/post" style={{ color: 'var(--accent)' }}>Post one →</Link></div>
+        ) : (
+          jobs.map(job => (
+            <button key={job._id}
+              className={`btn btn-sm ${selectedJobId === job._id ? 'btn-outline' : 'btn-ghost'}`}
+              onClick={() => { setSelectedJobId(job._id); setSelectedApplicant(null); }}>
+              {job.title}
+              {job.applicantCount > 0 && <span style={{ marginLeft: '0.3rem', fontSize: '0.7rem', color: 'var(--accent)' }}>({job.applicantCount})</span>}
+            </button>
+          ))
+        )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: selectedId ? '1fr 400px' : '1fr', gap: '1.25rem' }}>
-        {/* List */}
-        <div>
-          {isLoading ? (
-            [...Array(4)].map((_, i) => <div key={i} className="skeleton" style={{ height: 110, marginBottom: '0.75rem', borderRadius: 'var(--radius-lg)' }} />)
-          ) : candidates.length === 0 ? (
-            <div className="card"><div className="empty-state">No candidates match at {minScore}%+ yet.</div></div>
-          ) : (
-            candidates.map((c, i) => (
-              <div key={c.userId} className={`card card-hover animate-in`}
-                style={{ marginBottom: '0.75rem', animationDelay: `${i * 40}ms`, borderColor: selectedId === c.userId ? 'var(--accent)' : undefined, cursor: 'pointer' }}
-                onClick={() => setSelectedId(c.userId === selectedId ? null : c.userId)}>
-                <div className="card-body">
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem' }}>
-                    <div>
-                      <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
-                        <span style={{ fontWeight: 600 }}>{c.name}</span>
-                        {c.credentials?.filter(cr => cr.status === 'active').length > 0 && (
-                          <span className="badge badge-green">
-                            <Award size={11} /> {c.credentials.filter(cr => cr.status === 'active').length} verified
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: '0.8125rem', color: 'var(--text-2)', marginBottom: '0.4rem' }}>{c.headline}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>{c.location} · {c.industry}</div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.6rem' }}>
-                        {c.skills?.slice(0, 5).map(s => (
-                          <span key={s.skillName} className={`skill-pill ${s.verified ? 'verified' : ''}`}>{s.skillName}</span>
-                        ))}
-                      </div>
-                    </div>
-                    {/* Match score ring */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem' }}>
-                      <div style={{
-                        width: 52, height: 52, borderRadius: '50%',
-                        background: `conic-gradient(var(--accent) ${c.bestMatchScore * 3.6}deg, var(--surface-3) 0)`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-display)' }}>
-                          {c.bestMatchScore}%
+      {selectedJobId && (
+        <div style={{ display: 'grid', gridTemplateColumns: selectedApplicant ? '1fr 380px' : '1fr', gap: '1.25rem' }}>
+          {/* Applicant list */}
+          <div>
+            {appsLoading ? (
+              [...Array(3)].map((_, i) => <div key={i} className="skeleton" style={{ height: 110, marginBottom: '0.75rem', borderRadius: 'var(--radius-lg)' }} />)
+            ) : applicants.length === 0 ? (
+              <div className="card">
+                <div className="empty-state">
+                  <Users size={32} style={{ opacity: 0.3 }} />
+                  <div style={{ color: 'var(--text-2)', fontWeight: 600 }}>No applicants yet</div>
+                  <div style={{ fontSize: '0.875rem' }}>Share the job listing to attract candidates.</div>
+                </div>
+              </div>
+            ) : (
+              applicants.map((c, i) => (
+                <div key={c.userId} className={`card card-hover animate-in`}
+                  style={{ marginBottom: '0.75rem', animationDelay: `${i * 40}ms`, borderColor: selectedApplicant?.userId === c.userId ? 'var(--accent)' : undefined, cursor: 'pointer' }}
+                  onClick={() => setSelectedApplicant(c.userId === selectedApplicant?.userId ? null : c)}>
+                  <div className="card-body">
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem' }}>
+                      <div>
+                        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 600 }}>{c.name}</span>
+                          <span className={`badge ${c.status === 'submitted' ? 'badge-green' : 'badge-amber'}`}>{c.status === 'pending_test' ? 'Test Pending' : 'Applied'}</span>
+                          {c.verifiedSkills?.length > 0 && (
+                            <span className="badge badge-accent"><Award size={11} /> {c.verifiedSkills.length} verified</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--text-2)', marginBottom: '0.35rem' }}>{c.headline}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-3)', marginBottom: '0.5rem' }}>{c.location} · {c.email}</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                          {c.skills?.slice(0, 5).map(s => (
+                            <span key={s.skillName} className={`skill-pill ${s.verified ? 'verified' : ''}`}>{s.skillName}</span>
+                          ))}
                         </div>
                       </div>
-                      <div style={{ fontSize: '0.65rem', color: 'var(--text-3)' }}>match</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem' }}>
+                        <div style={{ width: 52, height: 52, borderRadius: '50%', background: `conic-gradient(var(--accent) ${c.matchScore * 3.6}deg, var(--surface-3) 0)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-display)' }}>
+                            {c.matchScore}%
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '0.65rem', color: 'var(--text-3)' }}>match</div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))
+              ))
+            )}
+          </div>
+
+          {/* Detail panel */}
+          {selectedApplicant && (
+            <div className="animate-in">
+              <CandidateDetail candidate={selectedApplicant} onClose={() => setSelectedApplicant(null)} />
+            </div>
           )}
         </div>
-
-        {/* Detail panel */}
-        {selectedId && detailData?.candidate && (
-          <div className="animate-in">
-            <CandidateDetail candidate={detailData.candidate} onClose={() => setSelectedId(null)} />
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
@@ -356,7 +374,6 @@ function CandidateDetail({ candidate: c, onClose }) {
 
         <hr className="divider" style={{ marginBottom: '1rem' }} />
 
-        {/* Skills */}
         <div style={{ marginBottom: '1rem' }}>
           <div className="label" style={{ marginBottom: '0.6rem' }}>Skills</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
@@ -372,9 +389,28 @@ function CandidateDetail({ candidate: c, onClose }) {
 
         <hr className="divider" style={{ marginBottom: '1rem' }} />
 
-        {/* Credentials / verification trail */}
+        {/* Verified credentials */}
+        {c.verifiedSkills?.length > 0 && (
+          <div style={{ marginBottom: '1rem' }}>
+            <div className="label" style={{ marginBottom: '0.6rem' }}>Verified for This Role</div>
+            {c.verifiedSkills.map(vs => (
+              <div key={vs.skillName} style={{ padding: '0.6rem 0.75rem', background: 'rgba(62,207,110,0.06)', border: '1px solid rgba(62,207,110,0.25)', borderRadius: 'var(--radius)', marginBottom: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                  <CheckCircle size={13} color="var(--green)" />
+                  <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{vs.skillName}</span>
+                  <span className="badge badge-accent" style={{ fontSize: '0.7rem' }}>{vs.proficiencyLevel}</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>{vs.score}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <hr className="divider" style={{ marginBottom: '1rem' }} />
+
+        {/* All credentials */}
         <div>
-          <div className="label" style={{ marginBottom: '0.6rem' }}>Verification Trail</div>
+          <div className="label" style={{ marginBottom: '0.6rem' }}>All Credentials</div>
           {c.credentials?.length === 0 ? (
             <div style={{ fontSize: '0.8125rem', color: 'var(--text-3)' }}>No credentials issued yet.</div>
           ) : (
@@ -384,14 +420,8 @@ function CandidateDetail({ candidate: c, onClose }) {
                   <Award size={13} color="var(--accent)" />
                   <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{cred.skillName}</span>
                   <span className="badge badge-accent" style={{ fontSize: '0.7rem' }}>{cred.proficiencyLevel}</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>Score: {cred.score}%</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>{cred.score}%</span>
                 </div>
-                {cred.anchoredTo?.jobTitle && (
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-3)', marginBottom: '0.35rem' }}>
-                    Anchored: {cred.anchoredTo.jobTitle} @ {cred.anchoredTo.companyName}
-                    <span style={{ marginLeft: '0.5rem' }}>({format(new Date(cred.anchoredTo.snapshotDate || cred.issuedAt), 'MMM d, yyyy')})</span>
-                  </div>
-                )}
                 <a href={cred.verifyUrl} target="_blank" rel="noopener noreferrer"
                   style={{ fontSize: '0.75rem', color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
                   <ExternalLink size={11} /> Verify
@@ -405,73 +435,106 @@ function CandidateDetail({ candidate: c, onClose }) {
   );
 }
 
-// ─── Skill Heatmap Page ───────────────────────────────────────────────────────
-export function HeatmapPage() {
+// ─── Analytics Page ────────────────────────────────────────────────────────────
+export function AnalyticsPage() {
   const { data, isLoading } = useQuery({
-    queryKey: ['heatmap'],
-    queryFn: () => employerApi.getHeatmap({}).then(r => r.data),
+    queryKey: ['employer-analytics'],
+    queryFn: () => employerApi.getAnalytics().then(r => r.data),
   });
 
-  const heatmap = data?.heatmap || [];
+  const summary = data?.summary || {};
+  const perJob = data?.perJob || [];
+  const topSkills = data?.topDemandSkills || [];
 
   return (
-    <div className="animate-in" style={{ maxWidth: 860 }}>
+    <div className="animate-in" style={{ maxWidth: 900 }}>
       <div style={{ marginBottom: '2rem' }}>
-        <div className="label" style={{ marginBottom: '0.4rem' }}>Market Intelligence</div>
-        <h1 className="display-lg">Skill <span className="accent-mark">Heatmap</span></h1>
-        <p style={{ color: 'var(--text-2)', marginTop: '0.5rem' }}>Which skills are hardest to find in the verified candidate pool for your open roles.</p>
+        <div className="label" style={{ marginBottom: '0.4rem' }}>Insights</div>
+        <h1 className="display-lg">Hiring <span className="accent-mark">Analytics</span></h1>
+        <p style={{ color: 'var(--text-2)', marginTop: '0.5rem' }}>Performance metrics across your job listings.</p>
       </div>
 
-      {isLoading ? <div className="skeleton" style={{ height: 300, borderRadius: 'var(--radius-lg)' }} /> : (
-        <div className="card">
-          <div className="card-body">
-            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.25rem', fontSize: '0.75rem', color: 'var(--text-3)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                <div style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--accent)' }} /> Scarcity (shortage in pool)
+      {isLoading ? (
+        [...Array(3)].map((_, i) => <div key={i} className="skeleton" style={{ height: 120, marginBottom: '1rem', borderRadius: 'var(--radius-lg)' }} />)
+      ) : (
+        <>
+          {/* Summary stats */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
+            {[
+              { label: 'Total Jobs', value: summary.totalJobs ?? 0, color: 'var(--accent)' },
+              { label: 'Total Applicants', value: summary.totalApplicants ?? 0, color: 'var(--green)' },
+              { label: 'Avg Match Score', value: summary.avgMatchScore ? `${summary.avgMatchScore}%` : '—', color: 'var(--blue)' },
+            ].map(s => (
+              <div key={s.label} className="card">
+                <div className="card-body" style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '2.5rem', fontFamily: 'var(--font-display)', fontWeight: 700, color: s.color, lineHeight: 1 }}>{s.value}</div>
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--text-3)', marginTop: '0.4rem' }}>{s.label}</div>
+                </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                <div style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--surface-3)' }} /> Supply rate (% of candidates who have it)
+            ))}
+          </div>
+
+          {/* Per-job breakdown */}
+          <div className="card" style={{ marginBottom: '1.5rem' }}>
+            <div className="card-body">
+              <div style={{ fontWeight: 600, marginBottom: '1.25rem' }}>Per-Job Breakdown</div>
+              {perJob.length === 0 ? (
+                <div style={{ fontSize: '0.875rem', color: 'var(--text-3)' }}>No jobs data yet.</div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                      {['Job Title', 'Status', 'Applicants', 'Avg Score', 'Top Score'].map(h => (
+                        <th key={h} style={{ textAlign: 'left', padding: '0.5rem 0.75rem', color: 'var(--text-3)', fontWeight: 500, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {perJob.map(j => (
+                      <tr key={j.jobId} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '0.65rem 0.75rem', fontWeight: 500 }}>{j.jobTitle}</td>
+                        <td style={{ padding: '0.65rem 0.75rem' }}>
+                          <span className={`badge ${j.active ? 'badge-green' : 'badge-muted'}`}>{j.active ? 'Active' : 'Closed'}</span>
+                        </td>
+                        <td style={{ padding: '0.65rem 0.75rem', color: 'var(--text-2)' }}>{j.applicants}</td>
+                        <td style={{ padding: '0.65rem 0.75rem', color: 'var(--text-2)' }}>{j.avgScore > 0 ? `${j.avgScore}%` : '—'}</td>
+                        <td style={{ padding: '0.65rem 0.75rem', color: 'var(--accent)', fontWeight: 600 }}>{j.topScore > 0 ? `${j.topScore}%` : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+
+          {/* Market demand skills */}
+          {topSkills.length > 0 && (
+            <div className="card">
+              <div className="card-body">
+                <div style={{ fontWeight: 600, marginBottom: '1.25rem' }}>Top Skills in Market Demand</div>
+                {topSkills.slice(0, 8).map((s, i) => {
+                  const pct = Math.round((s.avgCount / (topSkills[0]?.avgCount || 1)) * 100);
+                  return (
+                    <div key={s.skillName} style={{ marginBottom: '0.85rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                        <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{s.skillName}</span>
+                        <span style={{ fontSize: '0.8125rem', color: 'var(--text-3)' }}>{s.avgCount.toLocaleString()}/mo</span>
+                      </div>
+                      <div style={{ height: 4, background: 'var(--surface-3)', borderRadius: 2 }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: 'var(--accent)', borderRadius: 2, transition: 'width 0.8s ease' }} />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-            <HeatmapChart data={heatmap} />
-          </div>
-        </div>
-      )}
-
-      {/* Table */}
-      {heatmap.length > 0 && (
-        <div className="card" style={{ marginTop: '1.25rem' }}>
-          <div className="card-body">
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  {['Skill', 'In your jobs', 'Candidates w/ skill', 'Verified', 'Scarcity'].map(h => (
-                    <th key={h} style={{ textAlign: 'left', padding: '0.5rem 0.75rem', color: 'var(--text-3)', fontWeight: 500, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {heatmap.map(row => (
-                  <tr key={row.skillName} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '0.65rem 0.75rem', fontWeight: 500 }}>{row.skillName}</td>
-                    <td style={{ padding: '0.65rem 0.75rem', color: 'var(--text-2)' }}>{row.jobCount}</td>
-                    <td style={{ padding: '0.65rem 0.75rem', color: 'var(--text-2)' }}>{row.candidatesWithSkill} <span style={{ color: 'var(--text-3)' }}>({row.supplyRate}%)</span></td>
-                    <td style={{ padding: '0.65rem 0.75rem', color: 'var(--green)' }}>{row.candidatesVerified}</td>
-                    <td style={{ padding: '0.65rem 0.75rem' }}>
-                      <span className={`badge ${row.scarcity > 70 ? 'badge-red' : row.scarcity > 40 ? 'badge-amber' : 'badge-green'}`}>{row.scarcity}%</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+          )}
+        </>
       )}
     </div>
   );
 }
 
 export { PostJobPage as EmployerPostJobPage };
-export { CandidatesPage as EmployerCandidatesPage };
-export { HeatmapPage as EmployerHeatmapPage };
-
+export { ApplicantsPage as EmployerApplicantsPage };
+export { AnalyticsPage as EmployerAnalyticsPage };

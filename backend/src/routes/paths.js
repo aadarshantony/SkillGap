@@ -2,6 +2,7 @@ import express from 'express';
 import LearningPath from '../models/LearningPath.js';
 import SkillTest from '../models/SkillTest.js';
 import LearnerProfile from '../models/LearnerProfile.js';
+import Application from '../models/Application.js';
 import User from '../models/User.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { generateLearningPath, generateSkillTest } from '../services/aiService.js';
@@ -44,7 +45,7 @@ router.post('/generate', requireAuth, requireRole('learner'), async (req, res) =
     // Check if a path already exists for this skill
     const existing = await LearningPath.findOne({
       learnerId: req.userId,
-      skillName,
+      skillName: new RegExp(`^${skillName.trim()}$`, 'i'),
       status: 'active',
     });
     if (existing) return res.json({ path: existing, existing: true });
@@ -54,7 +55,7 @@ router.post('/generate', requireAuth, requireRole('learner'), async (req, res) =
 
     const path = await LearningPath.create({
       learnerId: req.userId,
-      skillName,
+      skillName: skillName.trim(),
       targetProficiency,
       currentProficiency,
       triggeredBy: jobId ? { jobId, jobType, jobTitle, companyName, snapshotDate: new Date() } : undefined,
@@ -76,7 +77,7 @@ router.patch('/:id/step/:order', requireAuth, requireRole('learner'), async (req
 
     const step = path.steps.find(s => s.order === parseInt(req.params.order));
     if (!step) return res.status(404).json({ error: 'Step not found' });
-    if (step.type === 'checkpoint') return res.status(400).json({ error: 'Checkpoint must be completed via /checkpoint endpoint' });
+    if (step.type === 'checkpoint') return res.status(400).json({ error: 'Checkpoint must be completed via assessment' });
 
     step.completed = true;
     step.completedAt = new Date();
@@ -88,55 +89,74 @@ router.patch('/:id/step/:order', requireAuth, requireRole('learner'), async (req
   }
 });
 
-// GET /api/paths/:id/test — get (or generate) skill test for checkpoint
+// GET /api/paths/:id/test — get skill test with custom question count & fresh toggle
 router.get('/:id/test', requireAuth, requireRole('learner'), async (req, res) => {
   try {
     const path = await LearningPath.findOne({ _id: req.params.id, learnerId: req.userId });
     if (!path) return res.status(404).json({ error: 'Path not found' });
 
-    const cacheKey = `${path.skillName.toLowerCase().replace(/\s+/g, '_')}_${path.targetProficiency}`;
+    const fresh = req.query.fresh === 'true';
+    const count = parseInt(req.query.count) || 8;
 
-    // Try to find cached test
-    let test = await SkillTest.findOne({ cacheKey });
+    const cacheKey = `${path.skillName.toLowerCase().replace(/\s+/g, '_')}_${path.targetProficiency}_q${count}`;
+
+    let test;
+    if (!fresh) {
+      test = await SkillTest.findOne({ cacheKey });
+    }
 
     if (!test) {
-      // Generate test via AI
-      const generated = await generateSkillTest(path.skillName, path.targetProficiency);
+      const generated = await generateSkillTest(path.skillName, path.targetProficiency, count);
+      const uniqueKey = fresh ? `${cacheKey}_${Date.now()}` : cacheKey;
       test = await SkillTest.create({
         skillName: path.skillName,
         proficiencyLevel: path.targetProficiency,
         questions: generated.questions || [],
-        cacheKey,
+        cacheKey: uniqueKey,
         aiGenerated: true,
       });
     }
 
-    // Return questions without correct answers (security)
-    const safeQuestions = test.questions.map((q, i) => ({
+    const safeQuestions = (test.questions || []).map((q, i) => ({
       index: i,
       text: q.text,
       options: q.options,
       difficulty: q.difficulty,
     }));
 
-    res.json({ test: { id: test._id, skillName: test.skillName, proficiencyLevel: test.proficiencyLevel, timeLimit: test.timeLimit, passingScore: test.passingScore, questions: safeQuestions } });
+    res.json({
+      test: {
+        id: test._id,
+        skillName: test.skillName,
+        proficiencyLevel: test.proficiencyLevel,
+        timeLimit: Math.max(10, Math.ceil((safeQuestions.length * 2.5))),
+        passingScore: 70,
+        questions: safeQuestions,
+      }
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// POST /api/paths/:id/checkpoint — submit test answers + issue credential
+// POST /api/paths/:id/checkpoint — submit test answers + issue credential + update application
 router.post('/:id/checkpoint', requireAuth, requireRole('learner'), async (req, res) => {
   try {
-    const { answers, timeTakenMinutes } = req.body; // answers: [{questionIndex, selectedOption}]
+    const { answers, timeTakenMinutes, testId } = req.body;
     const path = await LearningPath.findOne({ _id: req.params.id, learnerId: req.userId });
     if (!path) return res.status(404).json({ error: 'Path not found' });
     if (path.status === 'completed') return res.status(400).json({ error: 'Path already completed' });
 
-    const cacheKey = `${path.skillName.toLowerCase().replace(/\s+/g, '_')}_${path.targetProficiency}`;
-    const test = await SkillTest.findOne({ cacheKey });
-    if (!test || !test.questions.length) {
-      return res.status(400).json({ error: 'No test found for this path. Generate test first.' });
+    let test;
+    if (testId) {
+      test = await SkillTest.findById(testId);
+    } else {
+      const cacheKey = `${path.skillName.toLowerCase().replace(/\s+/g, '_')}_${path.targetProficiency}`;
+      test = await SkillTest.findOne({ cacheKey });
+    }
+
+    if (!test || !test.questions?.length) {
+      return res.status(400).json({ error: 'No test found. Please load the assessment first.' });
     }
 
     // Grade answers
@@ -147,16 +167,17 @@ router.post('/:id/checkpoint', requireAuth, requireRole('learner'), async (req, 
     }
 
     const score = Math.round((correct / test.questions.length) * 100);
-    const passed = score >= test.passingScore;
+    const passed = score >= (test.passingScore || 70);
 
     if (!passed) {
       return res.json({
         passed: false,
         score,
-        passingScore: test.passingScore,
-        message: `You scored ${score}%. You need ${test.passingScore}% to pass. Keep studying and try again!`,
+        passingScore: test.passingScore || 70,
+        message: `You scored ${score}%. You need ${test.passingScore || 70}% to pass. Review the materials and retry!`,
         correctAnswers: correct,
         totalQuestions: test.questions.length,
+        canRetry: true,
       });
     }
 
@@ -169,7 +190,7 @@ router.post('/:id/checkpoint', requireAuth, requireRole('learner'), async (req, 
       skillName: path.skillName,
       proficiencyLevel: path.targetProficiency,
       score,
-      passingScore: test.passingScore,
+      passingScore: test.passingScore || 70,
       pathId: path._id,
       anchoredTo: path.triggeredBy
         ? {
@@ -190,19 +211,61 @@ router.post('/:id/checkpoint', requireAuth, requireRole('learner'), async (req, 
       },
     });
 
-    // Mark all steps complete
+    // Mark path completed
     path.steps.forEach(s => { s.completed = true; s.completedAt = new Date(); });
+    path.status = 'completed';
+    path.credentialId = credential._id;
     await path.save();
+
+    // Update learner profile: mark skill verified & updated proficiency
+    let profile = await LearnerProfile.findOne({ userId: req.userId });
+    if (profile) {
+      const existingSkill = profile.skills.find(s => s.skillName.toLowerCase() === path.skillName.toLowerCase());
+      if (existingSkill) {
+        existingSkill.verified = true;
+        existingSkill.proficiency = path.targetProficiency;
+        existingSkill.source = 'test';
+      } else {
+        profile.skills.push({
+          skillName: path.skillName,
+          proficiency: path.targetProficiency,
+          verified: true,
+          source: 'test',
+        });
+      }
+      await profile.save();
+    }
+
+    // Update all pending applications for this learner waiting on this skill test
+    const skillRegex = new RegExp(`^${path.skillName.trim()}$`, 'i');
+    await Application.updateMany(
+      {
+        learnerId: req.userId,
+        status: 'pending_test',
+        $or: [
+          { 'triggeredTest.skillName': skillRegex },
+          ...(path.triggeredBy?.jobId ? [{ jobId: path.triggeredBy.jobId }] : [])
+        ]
+      },
+      {
+        $set: {
+          status: 'submitted',
+          submittedAt: new Date(),
+          'triggeredTest.passed': true,
+          'triggeredTest.score': score,
+        }
+      }
+    );
 
     res.json({
       passed: true,
       score,
-      passingScore: test.passingScore,
+      passingScore: test.passingScore || 70,
       correctAnswers: correct,
       totalQuestions: test.questions.length,
       credential: { id: credential._id, slug: credential.slug, skillName: credential.skillName },
       verifyUrl: `/verify/${credential.slug}`,
-      message: `🎉 Congratulations! You passed with ${score}%. Your ${path.skillName} credential has been issued.`,
+      message: `🎉 Congratulations! You passed with ${score}%. Your ${path.skillName} verified badge has been issued!`,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

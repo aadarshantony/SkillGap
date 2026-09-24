@@ -9,16 +9,20 @@ import OnboardPage from './pages/auth/OnboardPage';
 
 import LearnerDashboard from './pages/learner/DashboardPage';
 import JobBoardPage from './pages/learner/JobBoardPage';
+import AppliedJobsPage from './pages/learner/AppliedJobsPage';
+import MarketPulsePage from './pages/learner/MarketPulsePage';
 import PathsPage from './pages/learner/PathsPage';
 import PathDetailPage from './pages/learner/PathDetailPage';
 import CredentialsPage from './pages/learner/CredentialsPage';
+import RoleReadinessPage from './pages/learner/RoleReadinessPage';
 
 import {
   EmployerDashboard,
   EmployerPostJobPage,
-  EmployerCandidatesPage,
-  EmployerHeatmapPage
+  EmployerApplicantsPage,
+  EmployerAnalyticsPage,
 } from './pages/employer/EmployerPages';
+import TalentSearchPage from './pages/employer/TalentSearchPage';
 
 import PublicVerifyPage from './pages/verify/PublicVerifyPage';
 import { useAuthStore } from './store/authStore';
@@ -80,16 +84,20 @@ export default function App() {
             {/* Learner Routes */}
             <Route path="/dashboard" element={<LearnerDashboard />} />
             <Route path="/jobs" element={<JobBoardPage />} />
+            <Route path="/applied" element={<AppliedJobsPage />} />
+            <Route path="/market-pulse" element={<MarketPulsePage />} />
             <Route path="/paths" element={<PathsPage />} />
             <Route path="/paths/:id" element={<PathDetailPage />} />
             <Route path="/credentials" element={<CredentialsPage />} />
+            <Route path="/readiness" element={<RoleReadinessPage />} />
 
             {/* Employer Routes */}
             <Route path="/employer" element={<EmployerDashboard />} />
             <Route path="/employer/post" element={<EmployerPostJobPage />} />
             <Route path="/employer/post-job" element={<EmployerPostJobPage />} />
-            <Route path="/employer/candidates" element={<EmployerCandidatesPage />} />
-            <Route path="/employer/heatmap" element={<EmployerHeatmapPage />} />
+            <Route path="/employer/applicants" element={<EmployerApplicantsPage />} />
+            <Route path="/employer/talent" element={<TalentSearchPage />} />
+            <Route path="/employer/analytics" element={<EmployerAnalyticsPage />} />
           </Route>
 
           {/* Fallback */}

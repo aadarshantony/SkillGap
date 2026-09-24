@@ -8,387 +8,367 @@ import LearnerProfile from '../models/LearnerProfile.js';
 import EmployerProfile from '../models/EmployerProfile.js';
 import SkillTaxonomy from '../models/SkillTaxonomy.js';
 import JobEmployer from '../models/JobEmployer.js';
+import JobPublic from '../models/JobPublic.js';
 import SkillDemandDaily from '../models/SkillDemandDaily.js';
 import Credential from '../models/Credential.js';
 import SkillTest from '../models/SkillTest.js';
 import LearningPath from '../models/LearningPath.js';
+import Application from '../models/Application.js';
 
 const MONGO_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/skillgap';
 
-// ─── Skill Taxonomy ────────────────────────────────────────────────────────────
+// ─── Multi-Industry Skill Taxonomy ──────────────────────────────────────────
 const SKILLS = [
-  // Tech
-  { name: 'JavaScript', aliases: ['JS', 'js', 'javascript'], category: 'Programming', industry: ['Technology', 'Digital Media'] },
+  // Human Resources & Talent
+  { name: 'HR Compliance', aliases: ['labor law', 'employment compliance', 'statutory compliance'], category: 'Human Resources', industry: ['Corporate', 'Healthcare', 'Retail', 'Technology'] },
+  { name: 'Talent Acquisition', aliases: ['recruitment', 'hiring', 'talent sourcing'], category: 'Human Resources', industry: ['Corporate', 'Technology', 'Healthcare'] },
+  { name: 'Performance Management', aliases: ['employee evaluation', 'KPI management', 'appraisals'], category: 'Human Resources', industry: ['Corporate'] },
+  { name: 'Employee Relations', aliases: ['grievance handling', 'conflict resolution', 'workplace culture'], category: 'Human Resources', industry: ['Corporate'] },
+
+  // Sales & Business Development
+  { name: 'B2B Sales', aliases: ['business sales', 'corporate sales', 'account management'], category: 'Sales', industry: ['Corporate', 'Technology', 'Finance'] },
+  { name: 'CRM Systems', aliases: ['Salesforce', 'HubSpot CRM', 'lead management'], category: 'Sales', industry: ['Corporate', 'Retail'] },
+  { name: 'Sales Negotiation', aliases: ['deal closing', 'contract negotiation', 'client management'], category: 'Sales', industry: ['Corporate', 'Real Estate'] },
+
+  // Legal & Corporate Compliance
+  { name: 'Legal Writing & Contract Law', aliases: ['contract drafting', 'legal research', 'agreements'], category: 'Legal', industry: ['Legal', 'Corporate', 'Finance'] },
+  { name: 'Corporate Compliance', aliases: ['regulatory compliance', 'ESG compliance', 'audit compliance'], category: 'Legal', industry: ['Legal', 'Banking', 'Healthcare'] },
+
+  // Education & Pedagogy
+  { name: 'Lesson Planning', aliases: ['curriculum planning', 'instructional design', 'pedagogy'], category: 'Education', industry: ['Education'] },
+  { name: 'Classroom Management', aliases: ['student engagement', 'behavioral management'], category: 'Education', industry: ['Education'] },
+  { name: 'Student Evaluation', aliases: ['assessment design', 'grading', 'rubrics'], category: 'Education', industry: ['Education'] },
+
+  // Marketing & Media
+  { name: 'Digital Marketing', aliases: ['SEO', 'SEM', 'social media marketing', 'PPC'], category: 'Marketing', industry: ['Retail', 'Media', 'Corporate'] },
+  { name: 'Brand Strategy', aliases: ['brand positioning', 'marketing strategy', 'campaign management'], category: 'Marketing', industry: ['Retail', 'Corporate'] },
+  { name: 'Content Writing', aliases: ['copywriting', 'content creation', 'SEO writing'], category: 'Marketing', industry: ['Media', 'Technology'] },
+
+  // Finance & Accounting
+  { name: 'Financial Accounting', aliases: ['bookkeeping', 'balance sheets', 'financial statements', 'Tally', 'QuickBooks'], category: 'Accounting', industry: ['Finance', 'Corporate', 'Retail'] },
+  { name: 'Tax Compliance', aliases: ['GST filing', 'income tax', 'corporate taxation'], category: 'Accounting', industry: ['Finance', 'Corporate'] },
+  { name: 'Financial Analysis', aliases: ['financial modelling', 'budgeting', 'forecasting'], category: 'Finance', industry: ['Finance', 'Banking'] },
+
+  // Operations & Logistics
+  { name: 'Supply Chain Optimization', aliases: ['SCM', 'logistics management', 'vendor coordination'], category: 'Operations', industry: ['Logistics', 'Retail', 'Manufacturing'] },
+  { name: 'Inventory Management', aliases: ['stock control', 'warehouse management'], category: 'Operations', industry: ['Retail', 'Logistics'] },
+  { name: 'Process Automation', aliases: ['SOP design', 'lean management', 'workflow optimization'], category: 'Operations', industry: ['Manufacturing', 'Corporate'] },
+
+  // Customer Support & Experience
+  { name: 'Customer Service', aliases: ['client support', 'helpdesk', 'customer satisfaction'], category: 'Customer Experience', industry: ['Retail', 'Hospitality', 'Technology', 'Healthcare'] },
+  { name: 'De-escalation Techniques', aliases: ['complaint resolution', 'conflict management'], category: 'Customer Experience', industry: ['Hospitality', 'Retail', 'Healthcare'] },
+
+  // Healthcare & Pharmacy
+  { name: 'Clinical Pharmacology', aliases: ['pharmacy management', 'drug interactions', 'dispensing'], category: 'Healthcare', industry: ['Healthcare', 'Pharma'] },
+  { name: 'Patient Safety & Care', aliases: ['clinical care', 'patient triage', 'nursing care'], category: 'Healthcare', industry: ['Healthcare'] },
+  { name: 'Electronic Health Records', aliases: ['EHR', 'EMR', 'health info systems'], category: 'Healthcare', industry: ['Healthcare'] },
+
+  // Software & Tech
+  { name: 'JavaScript', aliases: ['JS', 'es6', 'javascript'], category: 'Programming', industry: ['Technology'] },
   { name: 'React', aliases: ['ReactJS', 'React.js'], category: 'Frontend', industry: ['Technology'] },
-  { name: 'Node.js', aliases: ['NodeJS', 'node', 'Node'], category: 'Backend', industry: ['Technology'] },
-  { name: 'Python', aliases: ['py', 'python3'], category: 'Programming', industry: ['Technology', 'Data Science', 'Healthcare'] },
-  { name: 'SQL', aliases: ['MySQL', 'PostgreSQL', 'Structured Query Language'], category: 'Data', industry: ['Technology', 'Finance', 'Retail'] },
-  { name: 'Machine Learning', aliases: ['ML', 'machine-learning'], category: 'Data Science', industry: ['Technology', 'Healthcare', 'Finance'] },
-  { name: 'Cloud Computing', aliases: ['AWS', 'Azure', 'GCP', 'cloud'], category: 'Infrastructure', industry: ['Technology'] },
-  // Retail / Hospitality
-  { name: 'Customer Service', aliases: ['customer support', 'client service'], category: 'Soft Skills', industry: ['Retail', 'Hospitality', 'Healthcare'] },
-  { name: 'Inventory Management', aliases: ['stock management', 'inventory control'], category: 'Operations', industry: ['Retail', 'Logistics'] },
-  { name: 'Point of Sale Systems', aliases: ['POS', 'cash register', 'billing software'], category: 'Retail Tech', industry: ['Retail', 'Hospitality'] },
-  // Healthcare
-  { name: 'Patient Care', aliases: ['patient management', 'clinical care'], category: 'Healthcare', industry: ['Healthcare'] },
-  { name: 'Medical Coding', aliases: ['ICD coding', 'CPT coding', 'health coding'], category: 'Healthcare Admin', industry: ['Healthcare'] },
-  // Skilled Trades
-  { name: 'Electrical Wiring', aliases: ['wiring', 'electrical installation'], category: 'Skilled Trade', industry: ['Construction', 'Manufacturing'] },
-  { name: 'Forklift Operation', aliases: ['forklift', 'pallet jack'], category: 'Logistics', industry: ['Logistics', 'Warehousing'] },
-  // Business
-  { name: 'Project Management', aliases: ['PM', 'project coordination', 'PMP'], category: 'Management', industry: ['Technology', 'Construction', 'Retail', 'Finance'] },
-  { name: 'Data Analysis', aliases: ['data analytics', 'business intelligence'], category: 'Data', industry: ['Finance', 'Retail', 'Technology'] },
-  { name: 'Digital Marketing', aliases: ['online marketing', 'SEO', 'SEM', 'social media marketing'], category: 'Marketing', industry: ['Retail', 'Technology', 'Media'] },
-  { name: 'Communication Skills', aliases: ['verbal communication', 'presentation'], category: 'Soft Skills', industry: ['All'] },
-  { name: 'Teamwork', aliases: ['collaboration', 'team player'], category: 'Soft Skills', industry: ['All'] },
-  { name: 'Food Safety', aliases: ['HACCP', 'food hygiene', 'food handling'], category: 'Compliance', industry: ['Hospitality', 'Food Service'] },
+  { name: 'Python', aliases: ['py', 'python3'], category: 'Programming', industry: ['Technology', 'Data Science', 'Finance'] },
+  { name: 'SQL', aliases: ['PostgreSQL', 'MySQL'], category: 'Data', industry: ['Technology', 'Finance'] },
+  { name: 'Data Analysis', aliases: ['data analytics', 'Excel', 'Power BI'], category: 'Data', industry: ['Finance', 'Corporate', 'Technology'] },
 ];
 
-// ─── Employer users/profiles ────────────────────────────────────────────────
+// ─── Diverse Multi-Industry Employers ────────────────────────────────────────
 const EMPLOYERS = [
-  { name: 'Riya Sharma', email: 'riya@techcorp.in', company: 'TechCorp India', industry: 'Technology', size: '201-500', location: 'Bengaluru, India' },
-  { name: 'Vikram Nair', email: 'vikram@retailmax.in', company: 'RetailMax', industry: 'Retail', size: '51-200', location: 'Mumbai, India' },
-  { name: 'Ananya Patel', email: 'ananya@healthplus.in', company: 'HealthPlus Clinics', industry: 'Healthcare', size: '51-200', location: 'Ahmedabad, India' },
-  { name: 'Siddharth Menon', email: 'sid@buildright.in', company: 'BuildRight Construction', industry: 'Construction', size: '11-50', location: 'Chennai, India' },
-  { name: 'Priya Agarwal', email: 'priya@cloudspark.io', company: 'CloudSpark', industry: 'Technology', size: '1-10', location: 'Remote' },
+  { name: 'Sunita Rao', email: 'sunita@apexcorp.com', company: 'Apex Global Enterprises', industry: 'Corporate', size: '500+', location: 'Mumbai, India' },
+  { name: 'Vikram Mehta', email: 'vikram@horizonhealth.in', company: 'Horizon Healthcare & Hospitals', industry: 'Healthcare', size: '201-500', location: 'Bengaluru, India' },
+  { name: 'Adv. Rajesh Sharma', email: 'rajesh@sharmalegal.in', company: 'Sharma & Associates Legal', industry: 'Legal', size: '11-50', location: 'New Delhi, India' },
+  { name: 'Deepa Kulkarni', email: 'deepa@edushine.edu.in', company: 'Edushine International Schools', industry: 'Education', size: '51-200', location: 'Pune, India' },
+  { name: 'Amitabh Verma', email: 'amitabh@logixpress.in', company: 'LogiXpress Logistics', industry: 'Logistics', size: '201-500', location: 'Chennai, India' },
+  { name: 'Riya Sen', email: 'riya@pulsemedia.in', company: 'Pulse Marketing Agency', industry: 'Marketing', size: '11-50', location: 'Mumbai, India' },
+  { name: 'Karan Malhotra', email: 'karan@techspark.io', company: 'TechSpark Systems', industry: 'Technology', size: '51-200', location: 'Bengaluru, India' },
 ];
 
-// ─── Learner users/profiles ──────────────────────────────────────────────────
+// ─── Diverse Multi-Industry Learners ─────────────────────────────────────────
 const LEARNERS = [
   {
-    name: 'Arjun Mehta', email: 'arjun@email.com',
-    headline: 'Aspiring Full-Stack Developer', location: 'Pune, India', industry: 'Technology',
+    name: 'Ananya Varma', email: 'ananya.hr@email.com',
+    headline: 'HR Specialist | Talent Acquisition & Employee Relations', location: 'Mumbai, India', industry: 'Human Resources',
     skills: [
-      { skillName: 'JavaScript', proficiency: 'intermediate', verified: true, source: 'test' },
-      { skillName: 'React', proficiency: 'beginner', verified: false, source: 'resume' },
-      { skillName: 'SQL', proficiency: 'beginner', verified: false, source: 'manual' },
+      { skillName: 'Talent Acquisition', proficiency: 'advanced', verified: true, source: 'test' },
+      { skillName: 'HR Compliance', proficiency: 'intermediate', verified: true, source: 'test' },
+      { skillName: 'Employee Relations', proficiency: 'intermediate', verified: false, source: 'resume' },
+      { skillName: 'Performance Management', proficiency: 'beginner', verified: false, source: 'manual' },
     ],
     resumeSource: 'upload',
   },
   {
-    name: 'Meera Krishnan', email: 'meera@email.com',
-    headline: 'Data Science Enthusiast', location: 'Hyderabad, India', industry: 'Technology',
+    name: 'Vikram Sharma', email: 'vikram.sales@email.com',
+    headline: 'B2B Sales Executive & Account Lead', location: 'Bengaluru, India', industry: 'Sales',
     skills: [
-      { skillName: 'Python', proficiency: 'advanced', verified: true, source: 'test' },
-      { skillName: 'Machine Learning', proficiency: 'intermediate', verified: true, source: 'test' },
-      { skillName: 'SQL', proficiency: 'intermediate', verified: false, source: 'resume' },
-      { skillName: 'Data Analysis', proficiency: 'intermediate', verified: true, source: 'test' },
+      { skillName: 'B2B Sales', proficiency: 'advanced', verified: true, source: 'test' },
+      { skillName: 'CRM Systems', proficiency: 'advanced', verified: true, source: 'test' },
+      { skillName: 'Sales Negotiation', proficiency: 'intermediate', verified: false, source: 'manual' },
     ],
     resumeSource: 'upload',
   },
   {
-    name: 'Raj Pillai', email: 'raj@email.com',
-    headline: 'Retail Associate looking to grow', location: 'Kochi, India', industry: 'Retail',
+    name: 'Adv. Rahul Kapoor', email: 'rahul.law@email.com',
+    headline: 'Corporate Legal Counsel & Contract Strategist', location: 'New Delhi, India', industry: 'Legal',
     skills: [
-      { skillName: 'Customer Service', proficiency: 'advanced', verified: true, source: 'test' },
-      { skillName: 'Point of Sale Systems', proficiency: 'intermediate', verified: false, source: 'manual' },
-      { skillName: 'Communication Skills', proficiency: 'intermediate', verified: false, source: 'manual' },
-    ],
-    resumeSource: 'manual',
-  },
-  {
-    name: 'Divya Nambiar', email: 'divya@email.com',
-    headline: 'Frontend Developer | React Specialist', location: 'Bengaluru, India', industry: 'Technology',
-    skills: [
-      { skillName: 'React', proficiency: 'advanced', verified: true, source: 'test' },
-      { skillName: 'JavaScript', proficiency: 'advanced', verified: true, source: 'test' },
-      { skillName: 'Node.js', proficiency: 'intermediate', verified: false, source: 'resume' },
-      { skillName: 'Project Management', proficiency: 'beginner', verified: false, source: 'manual' },
+      { skillName: 'Legal Writing & Contract Law', proficiency: 'advanced', verified: true, source: 'test' },
+      { skillName: 'Corporate Compliance', proficiency: 'intermediate', verified: true, source: 'test' },
     ],
     resumeSource: 'upload',
   },
   {
-    name: 'Karan Verma', email: 'karan@email.com',
-    headline: 'Healthcare Admin Professional', location: 'Delhi, India', industry: 'Healthcare',
+    name: 'Meenakshi Sundaram', email: 'meenakshi.edu@email.com',
+    headline: 'Senior Pedagogy Educator & Lesson Coordinator', location: 'Chennai, India', industry: 'Education',
     skills: [
-      { skillName: 'Medical Coding', proficiency: 'advanced', verified: true, source: 'test' },
-      { skillName: 'Patient Care', proficiency: 'intermediate', verified: false, source: 'resume' },
-      { skillName: 'Communication Skills', proficiency: 'advanced', verified: false, source: 'manual' },
+      { skillName: 'Lesson Planning', proficiency: 'advanced', verified: true, source: 'test' },
+      { skillName: 'Classroom Management', proficiency: 'advanced', verified: true, source: 'test' },
+      { skillName: 'Student Evaluation', proficiency: 'intermediate', verified: false, source: 'manual' },
     ],
     resumeSource: 'upload',
   },
   {
-    name: 'Smita Joshi', email: 'smita@email.com',
-    headline: 'Full-Stack Dev & Cloud Enthusiast', location: 'Pune, India', industry: 'Technology',
-    skills: [
-      { skillName: 'JavaScript', proficiency: 'advanced', verified: true, source: 'test' },
-      { skillName: 'Node.js', proficiency: 'advanced', verified: true, source: 'test' },
-      { skillName: 'Cloud Computing', proficiency: 'intermediate', verified: true, source: 'test' },
-      { skillName: 'Python', proficiency: 'beginner', verified: false, source: 'manual' },
-    ],
-    resumeSource: 'upload',
-  },
-  {
-    name: 'Aditya Singh', email: 'aditya@email.com',
-    headline: 'Logistics & Warehouse Operations', location: 'Mumbai, India', industry: 'Logistics',
-    skills: [
-      { skillName: 'Forklift Operation', proficiency: 'advanced', verified: true, source: 'test' },
-      { skillName: 'Inventory Management', proficiency: 'advanced', verified: true, source: 'test' },
-      { skillName: 'Teamwork', proficiency: 'intermediate', verified: false, source: 'manual' },
-    ],
-    resumeSource: 'manual',
-  },
-  {
-    name: 'Neha Gupta', email: 'neha@email.com',
-    headline: 'Digital Marketing Specialist', location: 'Noida, India', industry: 'Marketing',
+    name: 'Tanya Roy', email: 'tanya.mkt@email.com',
+    headline: 'Digital Growth & Brand Strategist', location: 'Mumbai, India', industry: 'Marketing',
     skills: [
       { skillName: 'Digital Marketing', proficiency: 'advanced', verified: true, source: 'test' },
-      { skillName: 'Data Analysis', proficiency: 'beginner', verified: false, source: 'manual' },
-      { skillName: 'Communication Skills', proficiency: 'advanced', verified: true, source: 'test' },
+      { skillName: 'Brand Strategy', proficiency: 'intermediate', verified: false, source: 'manual' },
+      { skillName: 'Content Writing', proficiency: 'intermediate', verified: true, source: 'test' },
     ],
     resumeSource: 'upload',
   },
   {
-    name: 'Rohit Tiwari', email: 'rohit@email.com',
-    headline: 'Junior Developer — fresh grad', location: 'Jaipur, India', industry: 'Technology',
+    name: 'Sneha Kulkarni', email: 'sneha.tax@email.com',
+    headline: 'Senior Accountant & Tax Consultant', location: 'Pune, India', industry: 'Accounting',
     skills: [
-      { skillName: 'Python', proficiency: 'beginner', verified: false, source: 'manual' },
-      { skillName: 'SQL', proficiency: 'beginner', verified: false, source: 'manual' },
+      { skillName: 'Financial Accounting', proficiency: 'advanced', verified: true, source: 'test' },
+      { skillName: 'Tax Compliance', proficiency: 'advanced', verified: true, source: 'test' },
+      { skillName: 'Financial Analysis', proficiency: 'intermediate', verified: false, source: 'resume' },
     ],
-    resumeSource: 'manual',
+    resumeSource: 'upload',
   },
   {
-    name: 'Preeti Desai', email: 'preeti@email.com',
-    headline: 'Hospitality Professional', location: 'Goa, India', industry: 'Hospitality',
+    name: 'Rajesh Gupta', email: 'rajesh.ops@email.com',
+    headline: 'Operations & Supply Chain Manager', location: 'Ahmedabad, India', industry: 'Operations',
     skills: [
-      { skillName: 'Customer Service', proficiency: 'expert', verified: true, source: 'test' },
-      { skillName: 'Food Safety', proficiency: 'advanced', verified: true, source: 'test' },
-      { skillName: 'Communication Skills', proficiency: 'advanced', verified: true, source: 'test' },
-      { skillName: 'Teamwork', proficiency: 'expert', verified: false, source: 'manual' },
+      { skillName: 'Supply Chain Optimization', proficiency: 'advanced', verified: true, source: 'test' },
+      { skillName: 'Inventory Management', proficiency: 'advanced', verified: true, source: 'test' },
+      { skillName: 'Process Automation', proficiency: 'intermediate', verified: false, source: 'manual' },
+    ],
+    resumeSource: 'upload',
+  },
+  {
+    name: 'Dr. Arishta Das', email: 'arishta.pharma@email.com',
+    headline: 'Clinical Pharmacist & Healthcare Lead', location: 'Kochi, India', industry: 'Healthcare',
+    skills: [
+      { skillName: 'Clinical Pharmacology', proficiency: 'advanced', verified: true, source: 'test' },
+      { skillName: 'Patient Safety & Care', proficiency: 'advanced', verified: true, source: 'test' },
+      { skillName: 'Electronic Health Records', proficiency: 'intermediate', verified: false, source: 'manual' },
+    ],
+    resumeSource: 'upload',
+  },
+  {
+    name: 'Arjun Mehta', email: 'arjun.tech@email.com',
+    headline: 'Full-Stack Developer | React & Python Specialist', location: 'Bengaluru, India', industry: 'Technology',
+    skills: [
+      { skillName: 'JavaScript', proficiency: 'advanced', verified: true, source: 'test' },
+      { skillName: 'React', proficiency: 'intermediate', verified: true, source: 'test' },
+      { skillName: 'Python', proficiency: 'beginner', verified: false, source: 'manual' },
     ],
     resumeSource: 'upload',
   },
 ];
 
-// ─── Employer Job Postings ────────────────────────────────────────────────────
-function makeJobs(employers, skills) {
+// ─── Multi-Industry Employer Jobs ────────────────────────────────────────────
+function makeJobs(skills) {
   const byName = (n) => skills.find(s => s.name === n);
   const req = (n, p, r = true) => ({ skillName: n, skillId: byName(n)?._id, proficiency: p, required: r });
 
   return [
+    // Apex Global
     {
-      companyName: 'TechCorp India',
-      title: 'Senior React Developer',
-      description: 'Build and maintain customer-facing web applications using React and modern JS tooling.',
-      location: 'Bengaluru, India',
-      remote: true,
-      industry: 'Technology',
-      jobType: 'full-time',
-      requirements: [req('React', 'advanced'), req('JavaScript', 'advanced'), req('Node.js', 'intermediate', false)],
-      salaryMin: 1200000, salaryMax: 2000000, currency: 'INR',
+      companyName: 'Apex Global Enterprises',
+      title: 'Senior HR Manager',
+      description: 'Lead statutory HR compliance, oversee employee grievance mechanisms, and manage multi-region recruitment pipelines. Requires strong employment law grounding.',
+      location: 'Mumbai, India', remote: false, industry: 'Corporate', jobType: 'full-time',
+      requirements: [req('HR Compliance', 'advanced'), req('Talent Acquisition', 'advanced'), req('Employee Relations', 'intermediate'), req('Performance Management', 'intermediate', false)],
+      salaryMin: 1200000, salaryMax: 1800000,
     },
     {
-      companyName: 'TechCorp India',
-      title: 'Data Engineer',
-      description: 'Design and build scalable data pipelines that power analytics platform. Python and SQL required.',
-      location: 'Bengaluru, India',
-      remote: false,
-      industry: 'Technology',
-      jobType: 'full-time',
-      requirements: [req('Python', 'advanced'), req('SQL', 'advanced'), req('Cloud Computing', 'intermediate')],
-      salaryMin: 1000000, salaryMax: 1800000, currency: 'INR',
+      companyName: 'Apex Global Enterprises',
+      title: 'Corporate Sales Lead',
+      description: 'Drive high-value B2B client acquisition, lead contract negotiations, and manage our enterprise CRM pipeline.',
+      location: 'Mumbai, India', remote: true, industry: 'Corporate', jobType: 'full-time',
+      requirements: [req('B2B Sales', 'advanced'), req('CRM Systems', 'intermediate'), req('Sales Negotiation', 'advanced')],
+      salaryMin: 1000000, salaryMax: 1600000,
     },
+    // Horizon Healthcare
     {
-      companyName: 'TechCorp India',
-      title: 'ML Engineer',
-      description: 'Deploy ML models into production environments.',
-      location: 'Bengaluru, India',
-      remote: true,
-      industry: 'Technology',
-      jobType: 'full-time',
-      requirements: [req('Machine Learning', 'advanced'), req('Python', 'advanced'), req('Cloud Computing', 'intermediate', false)],
-      salaryMin: 1500000, salaryMax: 2800000, currency: 'INR',
+      companyName: 'Horizon Healthcare & Hospitals',
+      title: 'Clinical Pharmacist',
+      description: 'Supervise hospital medication management, review clinical drug interactions, and enforce clinical patient safety standards.',
+      location: 'Bengaluru, India', remote: false, industry: 'Healthcare', jobType: 'full-time',
+      requirements: [req('Clinical Pharmacology', 'advanced'), req('Patient Safety & Care', 'advanced'), req('Electronic Health Records', 'intermediate', false)],
+      salaryMin: 800000, salaryMax: 1300000,
     },
+    // Sharma & Associates Legal
     {
-      companyName: 'RetailMax',
-      title: 'Store Associate — Electronics',
-      description: 'Assist customers in the electronics section, manage product inquiries, and handle billing.',
-      location: 'Mumbai, India',
-      remote: false,
-      industry: 'Retail',
-      jobType: 'full-time',
-      requirements: [req('Customer Service', 'intermediate'), req('Point of Sale Systems', 'beginner'), req('Communication Skills', 'intermediate')],
-      salaryMin: 240000, salaryMax: 360000, currency: 'INR',
+      companyName: 'Sharma & Associates Legal',
+      title: 'Corporate Legal Counsel',
+      description: 'Draft and review commercial contracts, advise corporate clients on regulatory compliance, and handle corporate governance filings.',
+      location: 'New Delhi, India', remote: false, industry: 'Legal', jobType: 'full-time',
+      requirements: [req('Legal Writing & Contract Law', 'advanced'), req('Corporate Compliance', 'intermediate')],
+      salaryMin: 1400000, salaryMax: 2200000,
     },
+    // Edushine International Schools
     {
-      companyName: 'RetailMax',
-      title: 'Inventory Controller',
-      description: 'Manage stock levels across regional warehouses and conduct audits.',
-      location: 'Mumbai, India',
-      remote: false,
-      industry: 'Retail',
-      jobType: 'full-time',
-      requirements: [req('Inventory Management', 'advanced'), req('Data Analysis', 'beginner', false), req('Communication Skills', 'intermediate')],
-      salaryMin: 360000, salaryMax: 600000, currency: 'INR',
+      companyName: 'Edushine International Schools',
+      title: 'Senior High School Teacher',
+      description: 'Develop structured lesson plans, manage classroom environments, and conduct standardized student evaluations.',
+      location: 'Pune, India', remote: false, industry: 'Education', jobType: 'full-time',
+      requirements: [req('Lesson Planning', 'advanced'), req('Classroom Management', 'advanced'), req('Student Evaluation', 'intermediate')],
+      salaryMin: 600000, salaryMax: 950000,
     },
+    // LogiXpress Logistics
     {
-      companyName: 'RetailMax',
-      title: 'E-Commerce Marketing Executive',
-      description: 'Run digital marketing campaigns, manage SEO and social channels.',
-      location: 'Mumbai, India',
-      remote: true,
-      industry: 'Retail',
-      jobType: 'full-time',
-      requirements: [req('Digital Marketing', 'intermediate'), req('Data Analysis', 'beginner'), req('Communication Skills', 'intermediate')],
-      salaryMin: 420000, salaryMax: 720000, currency: 'INR',
+      companyName: 'LogiXpress Logistics',
+      title: 'Operations & Supply Chain Manager',
+      description: 'Streamline warehouse inventory control, optimize regional freight routes, and automate logisitical workflows.',
+      location: 'Chennai, India', remote: false, industry: 'Operations', jobType: 'full-time',
+      requirements: [req('Supply Chain Optimization', 'advanced'), req('Inventory Management', 'advanced'), req('Process Automation', 'intermediate', false)],
+      salaryMin: 900000, salaryMax: 1500000,
     },
+    // Pulse Marketing Agency
     {
-      companyName: 'HealthPlus Clinics',
-      title: 'Medical Coder',
-      description: 'Accurately code patient records using ICD-10 and CPT systems.',
-      location: 'Ahmedabad, India',
-      remote: false,
-      industry: 'Healthcare',
-      jobType: 'full-time',
-      requirements: [req('Medical Coding', 'advanced'), req('Patient Care', 'beginner', false)],
-      salaryMin: 300000, salaryMax: 500000, currency: 'INR',
+      companyName: 'Pulse Marketing Agency',
+      title: 'Senior Marketing Executive',
+      description: 'Plan multi-channel digital campaigns, define brand positioning, and oversee content creation for retail clients.',
+      location: 'Mumbai, India', remote: true, industry: 'Marketing', jobType: 'full-time',
+      requirements: [req('Digital Marketing', 'advanced'), req('Brand Strategy', 'intermediate'), req('Content Writing', 'intermediate', false)],
+      salaryMin: 750000, salaryMax: 1250000,
     },
+    // TechSpark Systems
     {
-      companyName: 'HealthPlus Clinics',
-      title: 'Healthcare Data Analyst',
-      description: 'Analyse patient outcomes and operational data to drive clinical decisions.',
-      location: 'Ahmedabad, India',
-      remote: false,
-      industry: 'Healthcare',
-      jobType: 'full-time',
-      requirements: [req('Data Analysis', 'intermediate'), req('Python', 'intermediate', false), req('SQL', 'intermediate')],
-      salaryMin: 500000, salaryMax: 900000, currency: 'INR',
-    },
-    {
-      companyName: 'HealthPlus Clinics',
-      title: 'Patient Care Coordinator',
-      description: 'Coordinate care plans between doctors, patients, and insurance providers.',
-      location: 'Ahmedabad, India',
-      remote: false,
-      industry: 'Healthcare',
-      jobType: 'full-time',
-      requirements: [req('Patient Care', 'intermediate'), req('Communication Skills', 'advanced'), req('Medical Coding', 'beginner', false)],
-      salaryMin: 280000, salaryMax: 420000, currency: 'INR',
-    },
-    {
-      companyName: 'BuildRight Construction',
-      title: 'Electrical Technician',
-      description: 'Install and maintain electrical systems at construction sites.',
-      location: 'Chennai, India',
-      remote: false,
-      industry: 'Construction',
-      jobType: 'full-time',
-      requirements: [req('Electrical Wiring', 'advanced'), req('Teamwork', 'intermediate')],
-      salaryMin: 300000, salaryMax: 480000, currency: 'INR',
-    },
-    {
-      companyName: 'CloudSpark',
-      title: 'Full-Stack Engineer',
-      description: 'Build SaaS features with React and Node.js.',
-      location: 'Remote',
-      remote: true,
-      industry: 'Technology',
-      jobType: 'full-time',
-      requirements: [req('React', 'intermediate'), req('Node.js', 'intermediate'), req('JavaScript', 'advanced'), req('Cloud Computing', 'beginner', false)],
-      salaryMin: 800000, salaryMax: 1600000, currency: 'INR',
+      companyName: 'TechSpark Systems',
+      title: 'Senior Software Engineer',
+      description: 'Architect scalable web services with React, JavaScript, and Python. Build resilient customer interfaces.',
+      location: 'Bengaluru, India', remote: true, industry: 'Technology', jobType: 'full-time',
+      requirements: [req('React', 'advanced'), req('JavaScript', 'advanced'), req('Python', 'intermediate', false)],
+      salaryMin: 1500000, salaryMax: 2500000,
     },
   ];
 }
 
-function generateDemandData(skills) {
-  const records = [];
-  const today = new Date();
-  const baseCounts = {
-    'JavaScript': 180, 'React': 150, 'Python': 200, 'Node.js': 110,
-    'SQL': 140, 'Machine Learning': 90, 'Cloud Computing': 120,
-    'Customer Service': 250, 'Inventory Management': 80, 'Project Management': 100,
-    'Digital Marketing': 95, 'Data Analysis': 130, 'Communication Skills': 300,
-    'Patient Care': 75, 'Medical Coding': 60, 'Teamwork': 200,
-    'Electrical Wiring': 55, 'Forklift Operation': 45, 'Point of Sale Systems': 70,
-    'Food Safety': 65,
-  };
-  const trends = {
-    'JavaScript': 1.002, 'React': 1.004, 'Python': 1.006, 'Machine Learning': 1.008,
-    'Cloud Computing': 1.005, 'Customer Service': 1.001, 'Digital Marketing': 1.003,
-  };
-
-  for (const skill of skills) {
-    const base = baseCounts[skill.name] || 30;
-    const trend = trends[skill.name] || 1.0;
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - i);
-      date.setHours(0, 0, 0, 0);
-      const dayFactor = Math.pow(trend, 29 - i);
-      const noise = 0.85 + Math.random() * 0.3;
-      const count = Math.round(base * dayFactor * noise);
-      records.push({
-        skillId: skill._id,
-        skillName: skill.name,
-        date,
-        count,
-        sources: { adzuna: Math.round(count * 0.7), employer: Math.round(count * 0.3) },
-        regions: [
-          { region: 'Bengaluru', count: Math.round(count * 0.3) },
-          { region: 'Mumbai', count: Math.round(count * 0.25) },
-          { region: 'Hyderabad', count: Math.round(count * 0.2) },
-        ],
-      });
-    }
-  }
-  return records;
-}
-
-function makeTests(skills) {
-  const byName = (n) => skills.find(s => s.name === n);
-  return [
-    {
-      skillId: byName('JavaScript')?._id, skillName: 'JavaScript',
-      proficiencyLevel: 'intermediate', cacheKey: 'javascript_intermediate',
-      passingScore: 70, timeLimit: 20,
-      questions: [
-        { text: 'What does "===" check in JavaScript?', options: ['Value only', 'Type only', 'Value and type', 'Reference'], correctIndex: 2, explanation: 'Strict equality checks both value and type.', difficulty: 'easy' },
-        { text: 'Which method creates a new array by applying a function to each element?', options: ['forEach', 'filter', 'map', 'reduce'], correctIndex: 2, explanation: 'Array.map() transforms each element.', difficulty: 'easy' },
-        { text: 'What is a closure in JavaScript?', options: ['A function with no return', 'A function that remembers its lexical scope', 'An IIFE', 'A callback function'], correctIndex: 1, explanation: 'Closures retain scope access.', difficulty: 'medium' },
-        { text: 'What does Promise.all() return?', options: ['First resolved', 'All rejected', 'A promise resolving when all resolve', 'A promise resolving when any resolves'], correctIndex: 2, explanation: 'Resolves when all resolve.', difficulty: 'medium' },
-        { text: 'Which statement about "let" vs "var" is correct?', options: ['Both are function-scoped', 'let is block-scoped, var is function-scoped', 'var is block-scoped, let is function-scoped', 'They are identical'], correctIndex: 1, explanation: 'let is block scoped.', difficulty: 'easy' },
-      ],
-    },
-    {
-      skillId: byName('React')?._id, skillName: 'React',
-      proficiencyLevel: 'intermediate', cacheKey: 'react_intermediate',
-      passingScore: 70, timeLimit: 20,
-      questions: [
-        { text: 'What is the Virtual DOM in React?', options: ['Actual browser DOM', 'Lightweight in-memory representation of DOM', 'CSS-in-JS', 'State management'], correctIndex: 1, explanation: 'In-memory DOM representation.', difficulty: 'easy' },
-        { text: 'Which hook manages side effects?', options: ['useState', 'useContext', 'useEffect', 'useReducer'], correctIndex: 2, explanation: 'useEffect handles side effects.', difficulty: 'easy' },
-        { text: 'What is the key prop used for in lists?', options: ['Styling', 'Accessibility', 'Identifying changed/added/removed items', 'Events'], correctIndex: 2, explanation: 'Helps React efficiently reconcile lists.', difficulty: 'medium' },
-        { text: 'When does useEffect run by default without dependencies?', options: ['Only on mount', 'Only on unmount', 'After every render', 'Before render'], correctIndex: 2, explanation: 'Runs after every render.', difficulty: 'medium' },
-        { text: 'What is the correct way to update state in React?', options: ['Directly mutate state', 'Use setState / setter', 'Use global var', 'Both A and C'], correctIndex: 1, explanation: 'Use state setter.', difficulty: 'easy' },
-      ],
-    },
-    {
-      skillId: byName('Customer Service')?._id, skillName: 'Customer Service',
-      proficiencyLevel: 'intermediate', cacheKey: 'customerservice_intermediate',
-      passingScore: 70, timeLimit: 15,
-      questions: [
-        { text: 'A customer is angry about a delayed order. What is the best first step?', options: ['Blame courier', 'Refund immediately', 'Acknowledge frustration and apologize', 'Transfer department'], correctIndex: 2, explanation: 'Empathy de-escalates.', difficulty: 'easy' },
-        { text: 'What does active listening involve?', options: ['Talking more', 'Interrupting', 'Full attention and paraphrasing', 'Checking phone'], correctIndex: 2, explanation: 'Active listening is full attention.', difficulty: 'easy' },
-        { text: 'Handling request outside authority?', options: ['Guess answer', 'Refuse', 'Escalate while keeping customer informed', 'Promise anything'], correctIndex: 2, explanation: 'Escalate properly.', difficulty: 'medium' },
-        { text: 'Handling complaint about faulty product?', options: ['Deny', 'Acknowledge, apologize, offer fix', 'Contact manufacturer', 'Nothing can be done'], correctIndex: 1, explanation: 'Acknowledge and offer solution.', difficulty: 'medium' },
-        { text: 'Goal of follow-up after complaint?', options: ['Upsell', 'Confirm resolution and rebuild trust', 'Document for HR', 'Not necessary'], correctIndex: 1, explanation: 'Rebuild trust.', difficulty: 'easy' },
-      ],
-    },
-  ];
-}
+// ─── Multi-Domain Public Job Fallbacks ───────────────────────────────────────
+const PUBLIC_FALLBACK_JOBS = [
+  {
+    adzunaId: 'pub_hr_101',
+    title: 'Assistant HR Manager',
+    company: 'Nexus Corporate Services',
+    location: 'Bengaluru, India',
+    description: 'Manage onboarding, labor law compliance, and statutory benefits administration across regional offices.',
+    salary: { min: 650000, max: 950000, currency: 'INR' },
+    category: 'Human Resources',
+    industry: 'Corporate',
+    url: 'https://www.adzuna.in',
+    fetchedAt: new Date(),
+  },
+  {
+    adzunaId: 'pub_sales_102',
+    title: 'B2B Sales Specialist',
+    company: 'FinTech Solutions',
+    location: 'Mumbai, India',
+    description: 'Prospect commercial clients, demonstrate software products, and close enterprise SaaS subscriptions.',
+    salary: { min: 800000, max: 1300000, currency: 'INR' },
+    category: 'Sales',
+    industry: 'Sales',
+    url: 'https://www.adzuna.in',
+    fetchedAt: new Date(),
+  },
+  {
+    adzunaId: 'pub_legal_103',
+    title: 'Legal Compliance Officer',
+    company: 'Standard Chartered Financial',
+    location: 'Mumbai, India',
+    description: 'Monitor regulatory changes, ensure compliance with statutory norms, and audit legal documentation.',
+    salary: { min: 1100000, max: 1700000, currency: 'INR' },
+    category: 'Legal',
+    industry: 'Legal',
+    url: 'https://www.adzuna.in',
+    fetchedAt: new Date(),
+  },
+  {
+    adzunaId: 'pub_edu_104',
+    title: 'STEM Educator / Science Teacher',
+    company: 'Global Academy',
+    location: 'Hyderabad, India',
+    description: 'Deliver engaging science curriculum, oversee lab practicals, and track academic progress.',
+    salary: { min: 500000, max: 800000, currency: 'INR' },
+    category: 'Education',
+    industry: 'Education',
+    url: 'https://www.adzuna.in',
+    fetchedAt: new Date(),
+  },
+  {
+    adzunaId: 'pub_mkt_105',
+    title: 'Social Media & Growth Lead',
+    company: 'BrandVentures',
+    location: 'Remote, India',
+    description: 'Execute paid ad campaigns, design content calendars, and optimize conversion funnel metrics.',
+    salary: { min: 700000, max: 1100000, currency: 'INR' },
+    category: 'Marketing',
+    industry: 'Marketing',
+    url: 'https://www.adzuna.in',
+    fetchedAt: new Date(),
+  },
+  {
+    adzunaId: 'pub_acc_106',
+    title: 'Senior Tax Accountant',
+    company: 'KPMG India Alliance',
+    location: 'New Delhi, India',
+    description: 'Prepare GST returns, handle corporate income tax assessments, and perform financial audits.',
+    salary: { min: 900000, max: 1400000, currency: 'INR' },
+    category: 'Accounting',
+    industry: 'Accounting',
+    url: 'https://www.adzuna.in',
+    fetchedAt: new Date(),
+  },
+  {
+    adzunaId: 'pub_ops_107',
+    title: 'Warehouse & Inventory Manager',
+    company: 'Amazon Logistics Partner',
+    location: 'Ahmedabad, India',
+    description: 'Manage warehouse operations, maintain stock audit accuracy, and lead logistics teams.',
+    salary: { min: 600000, max: 900000, currency: 'INR' },
+    category: 'Operations',
+    industry: 'Operations',
+    url: 'https://www.adzuna.in',
+    fetchedAt: new Date(),
+  },
+  {
+    adzunaId: 'pub_pharma_108',
+    title: 'Hospital Pharmacy Lead',
+    company: 'Apollo Hospitals',
+    location: 'Chennai, India',
+    description: 'Ensure pharmaceutical compliance, supervise drug inventory, and counsel clinical staff.',
+    salary: { min: 750000, max: 1150000, currency: 'INR' },
+    category: 'Healthcare',
+    industry: 'Healthcare',
+    url: 'https://www.adzuna.in',
+    fetchedAt: new Date(),
+  },
+];
 
 export async function seedData() {
-  // Idempotent: clear existing seed data
   await Promise.all([
     User.deleteMany({}), LearnerProfile.deleteMany({}), EmployerProfile.deleteMany({}),
-    SkillTaxonomy.deleteMany({}), JobEmployer.deleteMany({}),
+    SkillTaxonomy.deleteMany({}), JobEmployer.deleteMany({}), JobPublic.deleteMany({}),
     SkillDemandDaily.deleteMany({}), Credential.deleteMany({}),
     SkillTest.deleteMany({}), LearningPath.deleteMany({}),
+    Application.deleteMany({}),
   ]);
   console.log('🗑️  Cleared existing data');
 
   // 1. Skills
   const skills = await SkillTaxonomy.insertMany(SKILLS);
-  console.log(`✅ Seeded ${skills.length} skills`);
+  console.log(`✅ Seeded ${skills.length} multi-industry skills`);
 
   // 2. Employer users + profiles
   const passwordHash = await bcrypt.hash('password123', 12);
@@ -405,17 +385,22 @@ export async function seedData() {
 
   // 3. Jobs
   const skillMap = Object.fromEntries(skills.map(s => [s.name, s._id]));
-  const rawJobs = makeJobs(employerProfiles, skills);
+  const empMap = Object.fromEntries(EMPLOYERS.map((e, i) => [e.company, employerUsers[i]._id]));
+  const rawJobs = makeJobs(skills);
   const jobs = await JobEmployer.insertMany(
-    rawJobs.map((j, i) => ({
+    rawJobs.map(j => ({
       ...j,
-      employerId: employerUsers[i % employerUsers.length]._id,
+      employerId: empMap[j.companyName] || employerUsers[0]._id,
       requirements: j.requirements.map(r => ({ ...r, skillId: skillMap[r.skillName] })),
     }))
   );
   console.log(`✅ Seeded ${jobs.length} employer jobs`);
 
-  // 4. Learner users + profiles
+  // 4. Public fallback jobs
+  await JobPublic.insertMany(PUBLIC_FALLBACK_JOBS);
+  console.log(`✅ Seeded ${PUBLIC_FALLBACK_JOBS.length} public fallback jobs`);
+
+  // 5. Learner users + profiles
   const learnerUsers = await User.insertMany(
     LEARNERS.map(l => ({ email: l.email, passwordHash, role: 'learner', name: l.name }))
   );
@@ -433,25 +418,21 @@ export async function seedData() {
   );
   console.log(`✅ Seeded ${learnerProfiles.length} learner profiles`);
 
-  // 5. Skill demand daily
-  const demandRecords = generateDemandData(skills);
-  await SkillDemandDaily.insertMany(demandRecords);
-  console.log(`✅ Seeded ${demandRecords.length} skill demand records`);
-
-  // 6. Skill tests
-  const rawTests = makeTests(skills);
-  const tests = await SkillTest.insertMany(rawTests);
-  console.log(`✅ Seeded ${tests.length} skill tests`);
-
-  // 7. Pre-issued credentials
+  // 6. Pre-issued Credentials
+  const issuedAt = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
   const credDefs = [
-    { learnerIdx: 0, skillName: 'JavaScript', proficiencyLevel: 'intermediate', score: 82, jobIdx: 0 },
-    { learnerIdx: 1, skillName: 'Python', proficiencyLevel: 'advanced', score: 91, jobIdx: 1 },
-    { learnerIdx: 2, skillName: 'Customer Service', proficiencyLevel: 'intermediate', score: 88, jobIdx: 3 },
-    { learnerIdx: 3, skillName: 'React', proficiencyLevel: 'advanced', score: 95, jobIdx: 0 },
-    { learnerIdx: 4, skillName: 'Medical Coding', proficiencyLevel: 'advanced', score: 87, jobIdx: 6 },
+    { learnerIdx: 0, skillName: 'Talent Acquisition', proficiencyLevel: 'advanced', score: 92, jobIdx: 0 },
+    { learnerIdx: 0, skillName: 'HR Compliance', proficiencyLevel: 'intermediate', score: 85, jobIdx: 0 },
+    { learnerIdx: 1, skillName: 'B2B Sales', proficiencyLevel: 'advanced', score: 94, jobIdx: 1 },
+    { learnerIdx: 2, skillName: 'Legal Writing & Contract Law', proficiencyLevel: 'advanced', score: 90, jobIdx: 3 },
+    { learnerIdx: 3, skillName: 'Lesson Planning', proficiencyLevel: 'advanced', score: 88, jobIdx: 4 },
+    { learnerIdx: 4, skillName: 'Digital Marketing', proficiencyLevel: 'advanced', score: 91, jobIdx: 6 },
+    { learnerIdx: 5, skillName: 'Financial Accounting', proficiencyLevel: 'advanced', score: 95, jobIdx: 5 },
+    { learnerIdx: 6, skillName: 'Supply Chain Optimization', proficiencyLevel: 'advanced', score: 89, jobIdx: 5 },
+    { learnerIdx: 7, skillName: 'Clinical Pharmacology', proficiencyLevel: 'advanced', score: 96, jobIdx: 2 },
+    { learnerIdx: 8, skillName: 'JavaScript', proficiencyLevel: 'advanced', score: 87, jobIdx: 7 },
   ];
-  const issuedAt = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
   const credentials = await Credential.insertMany(
     credDefs.map(c => ({
       slug: nanoid(12),
@@ -474,21 +455,57 @@ export async function seedData() {
       expiresAt: new Date(issuedAt.getTime() + 365 * 24 * 60 * 60 * 1000),
       status: 'active',
       testDetails: {
-        questionsAnswered: 5,
-        correctAnswers: Math.round(5 * c.score / 100),
+        questionsAnswered: 8,
+        correctAnswers: Math.round(8 * c.score / 100),
         timeTakenMinutes: 10,
         completedAt: issuedAt,
       },
     }))
   );
   console.log(`✅ Seeded ${credentials.length} credentials`);
-  console.log('🎉 Database seeding completed successfully.');
+
+  // 7. Applications
+  const appliedAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+  const appDefs = [
+    // Apex Global HR Manager
+    { learnerIdx: 0, jobIdx: 0, status: 'submitted', matchScore: 92 },
+    // Apex Global Corporate Sales Lead
+    { learnerIdx: 1, jobIdx: 1, status: 'submitted', matchScore: 94 },
+    // Horizon Clinical Pharmacist
+    { learnerIdx: 7, jobIdx: 2, status: 'submitted', matchScore: 96 },
+    // Sharma Legal Corporate Legal Counsel
+    { learnerIdx: 2, jobIdx: 3, status: 'submitted', matchScore: 90 },
+    // Edushine Senior Teacher
+    { learnerIdx: 3, jobIdx: 4, status: 'submitted', matchScore: 88 },
+    // LogiXpress Operations Manager
+    { learnerIdx: 6, jobIdx: 5, status: 'submitted', matchScore: 92 },
+    // Pulse Senior Marketing Exec
+    { learnerIdx: 4, jobIdx: 6, status: 'submitted', matchScore: 90 },
+    // TechSpark Senior Engineer
+    { learnerIdx: 8, jobIdx: 7, status: 'submitted', matchScore: 87 },
+  ];
+
+  const applications = await Application.insertMany(
+    appDefs.map(a => ({
+      learnerId: learnerUsers[a.learnerIdx]._id,
+      jobId: jobs[a.jobIdx]._id.toString(),
+      jobType: 'employer',
+      jobTitle: jobs[a.jobIdx].title,
+      companyName: jobs[a.jobIdx].companyName,
+      status: a.status,
+      matchScore: a.matchScore,
+      submittedAt: appliedAt,
+      createdAt: appliedAt,
+    }))
+  );
+  console.log(`✅ Seeded ${applications.length} applications`);
+  console.log('🎉 Multi-industry database seeding completed successfully.');
 }
 
 // If run directly via node
 if (process.argv[1]?.endsWith('seed/index.js')) {
-  mongoose.connect(MONGO_URI).then(async () => {
-    await seedData();
+  import('../config/db.js').then(async ({ connectDB }) => {
+    await connectDB();
     await mongoose.disconnect();
     process.exit(0);
   }).catch(err => {

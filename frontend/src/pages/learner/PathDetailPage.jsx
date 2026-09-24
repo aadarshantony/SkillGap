@@ -19,17 +19,37 @@ function TestModal({ pathId, skillName, onClose, onPass }) {
   const [answers, setAnswers] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
-  const [startTime] = useState(Date.now());
+  const [startTime, setStartTime] = useState(Date.now());
+  const [isFresh, setIsFresh] = useState(false);
+  const [questionCount, setQuestionCount] = useState(8);
 
-  React.useEffect(() => {
-    pathsApi.getTest(pathId).then(r => {
+  const loadTest = async (fresh = false, count = questionCount) => {
+    setLoading(true);
+    setAnswers({});
+    setResult(null);
+    setStartTime(Date.now());
+    try {
+      const r = await pathsApi.getTest(pathId, fresh, count);
       setTest(r.data.test);
-      setLoading(false);
-    }).catch(err => {
+    } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to load test');
       onClose();
-    });
-  }, [pathId]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => { loadTest(false, 8); }, [pathId]);
+
+  const handleRetry = () => {
+    setIsFresh(true);
+    loadTest(true, questionCount);
+  };
+
+  const handleCountChange = (newCount) => {
+    setQuestionCount(newCount);
+    loadTest(true, newCount);
+  };
 
   const handleSubmit = async () => {
     const answered = Object.keys(answers).length;
@@ -44,7 +64,11 @@ function TestModal({ pathId, skillName, onClose, onPass }) {
         selectedOption: opt,
       }));
       const timeTaken = Math.round((Date.now() - startTime) / 60000);
-      const { data } = await pathsApi.submitCheckpoint(pathId, { answers: formattedAnswers, timeTakenMinutes: timeTaken });
+      const { data } = await pathsApi.submitCheckpoint(pathId, {
+        answers: formattedAnswers,
+        timeTakenMinutes: timeTaken,
+        testId: test.id,
+      });
       setResult(data);
       if (data.passed) onPass(data);
     } catch (err) {
@@ -58,7 +82,9 @@ function TestModal({ pathId, skillName, onClose, onPass }) {
     <div className="modal-backdrop">
       <div className="modal-box" style={{ padding: '3rem', textAlign: 'center' }}>
         <span className="spinner" style={{ width: 32, height: 32, margin: '0 auto 1rem' }} />
-        <div style={{ color: 'var(--text-2)' }}>Loading your skill assessment…</div>
+        <div style={{ color: 'var(--text-2)' }}>
+          {isFresh ? `Generating ${questionCount} fresh skill questions…` : 'Loading your skill assessment…'}
+        </div>
       </div>
     </div>
   );
@@ -77,12 +103,17 @@ function TestModal({ pathId, skillName, onClose, onPass }) {
               </div>
               <div style={{ padding: '1rem', background: 'rgba(62,207,110,0.08)', border: '1px solid rgba(62,207,110,0.25)', borderRadius: 'var(--radius)', marginBottom: '1.5rem' }}>
                 <Award size={16} color="var(--green)" style={{ marginBottom: '0.5rem' }} />
-                <div style={{ fontWeight: 600, color: 'var(--green)', marginBottom: '0.25rem' }}>Credential Issued!</div>
-                <div style={{ fontSize: '0.8125rem', color: 'var(--text-2)' }}>Your {skillName} credential is now live and verifiable.</div>
+                <div style={{ fontWeight: 600, color: 'var(--green)', marginBottom: '0.25rem' }}>Credential Issued & Application Submitted!</div>
+                <div style={{ fontSize: '0.8125rem', color: 'var(--text-2)' }}>Your {skillName} skill is verified and pending job applications have been submitted.</div>
               </div>
-              <button className="btn btn-primary" onClick={() => { onClose(); }}>
-                <CheckCircle size={15} /> View My Credentials
-              </button>
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button className="btn btn-primary" onClick={() => { onClose(); navigate('/applied'); }}>
+                  <CheckCircle size={15} /> Track My Applied Jobs
+                </button>
+                <button className="btn btn-outline" onClick={() => { onClose(); navigate('/credentials'); }}>
+                  <Award size={15} /> View Credentials
+                </button>
+              </div>
             </>
           ) : (
             <>
@@ -93,7 +124,26 @@ function TestModal({ pathId, skillName, onClose, onPass }) {
                 {result.correctAnswers}/{result.totalQuestions} correct · Need: {result.passingScore}%
               </div>
               <div style={{ fontSize: '0.875rem', color: 'var(--text-2)', marginBottom: '1.5rem' }}>{result.message}</div>
-              <button className="btn btn-primary" onClick={onClose}>Got it — keep studying</button>
+              
+              <div style={{ marginBottom: '1.5rem', background: 'var(--surface-2)', padding: '0.75rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: '0.8125rem', color: 'var(--text-2)', marginBottom: '0.5rem' }}>Retry Question Count:</div>
+                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                  {[5, 8, 10, 15].map(cnt => (
+                    <button key={cnt} type="button"
+                      className={`btn btn-sm ${questionCount === cnt ? 'btn-primary' : 'btn-ghost'}`}
+                      onClick={() => setQuestionCount(cnt)}>
+                      {cnt} Qs
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+                <button className="btn btn-ghost" onClick={onClose}>Study more</button>
+                <button className="btn btn-primary" onClick={handleRetry}>
+                  <Zap size={14} /> Retry with {questionCount} questions
+                </button>
+              </div>
             </>
           )}
         </div>
@@ -111,7 +161,15 @@ function TestModal({ pathId, skillName, onClose, onPass }) {
               {test?.questions?.length} questions · {test?.timeLimit} min · Pass: {test?.passingScore}%
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>Length:</span>
+              <select className="input" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', width: 'auto' }}
+                value={test?.questions?.length || questionCount}
+                onChange={e => handleCountChange(parseInt(e.target.value))}>
+                {[5, 8, 10, 15].map(c => <option key={c} value={c}>{c} Qs</option>)}
+              </select>
+            </div>
             <div style={{ fontSize: '0.8125rem', color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               <Timer size={14} /> {Object.keys(answers).length}/{test?.questions?.length} answered
             </div>
@@ -175,7 +233,7 @@ export default function PathDetailPage() {
 
   const completeStep = useMutation({
     mutationFn: (order) => pathsApi.completeStep(id, order).then(r => r.data),
-    onSuccess: (_, order) => {
+    onSuccess: () => {
       qc.invalidateQueries(['path', id]);
       qc.invalidateQueries(['my-paths']);
       toast.success('Step completed!');
@@ -204,7 +262,7 @@ export default function PathDetailPage() {
   const allNonCheckpointDone = path.steps?.filter(s => s.type !== 'checkpoint').every(s => s.completed);
   const isCompleted = path.status === 'completed';
 
-  const handleTestPass = (result) => {
+  const handleTestPass = () => {
     qc.invalidateQueries(['path', id]);
     qc.invalidateQueries(['my-paths']);
     qc.invalidateQueries(['my-credentials']);

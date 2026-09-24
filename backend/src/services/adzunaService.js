@@ -21,7 +21,7 @@ export async function fetchAdzunaJobs({ keywords = '', location = '', page = 1, 
       app_id: APP_ID,
       app_key: APP_KEY,
       results_per_page: results,
-      what: keywords || 'developer',
+      what: keywords || 'manager',
       where: location || 'India',
       content_type: 'application/json',
     };
@@ -30,7 +30,7 @@ export async function fetchAdzunaJobs({ keywords = '', location = '', page = 1, 
     const res = await axios.get(url, { params, timeout: 10000 });
     return { results: res.data.results || [], count: res.data.count || 0 };
   } catch (err) {
-    console.error('Adzuna fetch error:', err.message);
+    console.error('Adzuna API connection error (using cached fallback):', err.message);
     return { results: [], count: 0 };
   }
 }

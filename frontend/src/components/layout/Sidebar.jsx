@@ -3,21 +3,26 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import {
   LayoutDashboard, Briefcase, BookOpen, Award,
-  Users, PlusSquare, BarChart2, LogOut, Zap
+  PlusSquare, LogOut, Zap, TrendingUp, ClipboardList,
+  BarChart2, Users, Target, Search, User
 } from 'lucide-react';
 
 const learnerNav = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/jobs',      icon: Briefcase,        label: 'Job Board' },
-  { to: '/paths',     icon: BookOpen,          label: 'My Paths' },
-  { to: '/credentials', icon: Award,           label: 'Credentials' },
+  { to: '/dashboard',      icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/jobs',           icon: Briefcase,        label: 'Job Board' },
+  { to: '/applied',        icon: ClipboardList,    label: 'Applied Jobs' },
+  { to: '/paths',          icon: BookOpen,          label: 'My Paths' },
+  { to: '/credentials',    icon: Award,             label: 'Credentials' },
+  { to: '/readiness',      icon: Target,            label: 'Role Readiness' },
+  { to: '/market-pulse',   icon: TrendingUp,        label: 'Market Pulse' },
 ];
 
 const employerNav = [
-  { to: '/employer',        icon: LayoutDashboard, label: 'Overview' },
-  { to: '/employer/post',   icon: PlusSquare,      label: 'Post a Job' },
-  { to: '/employer/candidates', icon: Users,       label: 'Candidates' },
-  { to: '/employer/heatmap', icon: BarChart2,      label: 'Skill Heatmap' },
+  { to: '/employer',           icon: LayoutDashboard, label: 'Overview' },
+  { to: '/employer/post',      icon: PlusSquare,      label: 'Post a Job' },
+  { to: '/employer/applicants',icon: Users,           label: 'Applicants' },
+  { to: '/employer/talent',    icon: Search,          label: 'Talent Pool' },
+  { to: '/employer/analytics', icon: BarChart2,       label: 'Analytics' },
 ];
 
 export default function Sidebar() {

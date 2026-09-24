@@ -19,7 +19,6 @@ router.post('/', requireAuth, requireRole('employer'), async (req, res) => {
 
     let resolvedRequirements = requirements || [];
 
-    // If no requirements provided, extract from description using AI
     if (!resolvedRequirements.length && description.length > 50) {
       try {
         const extracted = await extractJobSkills(description);
@@ -40,7 +39,7 @@ router.post('/', requireAuth, requireRole('employer'), async (req, res) => {
   }
 });
 
-// ─── Employer jobs list ──────────────────────────────────────────────────────
+// ─── Employer jobs list (for learners browsing) ───────────────────────────────
 router.get('/employer', requireAuth, async (req, res) => {
   try {
     const { industry, location, skills, showAll } = req.query;
@@ -50,7 +49,6 @@ router.get('/employer', requireAuth, async (req, res) => {
 
     let jobs = await JobEmployer.find(query).sort({ createdAt: -1 }).limit(50);
 
-    // If learner and not showAll, filter by learner's skills
     const user = await User.findById(req.userId);
     if (user.role === 'learner' && showAll !== 'true') {
       const profile = await LearnerProfile.findOne({ userId: req.userId });
@@ -60,6 +58,13 @@ router.get('/employer', requireAuth, async (req, res) => {
           j.requirements.some(r => learnerSkills.includes(r.skillName.toLowerCase()))
         );
       }
+    }
+
+    if (user.role === 'learner') {
+      const jobIds = jobs.map(j => j._id.toString());
+      const apps = await Application.find({ learnerId: req.userId, jobId: { $in: jobIds }, jobType: 'employer' });
+      const appliedSet = new Set(apps.map(a => a.jobId));
+      jobs = jobs.map(j => ({ ...j.toObject(), applied: appliedSet.has(j._id.toString()), applicationStatus: apps.find(a => a.jobId === j._id.toString())?.status }));
     }
 
     res.json({ jobs });
@@ -73,10 +78,18 @@ router.get('/public', requireAuth, async (req, res) => {
   try {
     const { keywords, location, refresh } = req.query;
 
-    // Optionally refresh from Adzuna
-    if (refresh === 'true') {
-      const { results } = await fetchAdzunaJobs({ keywords, location });
-      await normalizeAndCache(results);
+    const cachedCount = await JobPublic.countDocuments({});
+
+    if (refresh === 'true' || cachedCount === 0) {
+      try {
+        const { results } = await fetchAdzunaJobs({ keywords, location, results: 50 });
+        if (results.length > 0) {
+          await normalizeAndCache(results);
+          console.log(`✅ Fetched ${results.length} jobs from Adzuna`);
+        }
+      } catch (err) {
+        console.warn('Adzuna fetch failed:', err.message);
+      }
     }
 
     const query = {};
@@ -87,7 +100,69 @@ router.get('/public', requireAuth, async (req, res) => {
     if (location) query.location = new RegExp(location, 'i');
 
     const jobs = await JobPublic.find(query).sort({ fetchedAt: -1 }).limit(50);
-    res.json({ jobs });
+
+    const user = await User.findById(req.userId);
+    let jobsWithStatus = jobs;
+    if (user.role === 'learner') {
+      const jobIds = jobs.map(j => j._id.toString());
+      const apps = await Application.find({ learnerId: req.userId, jobId: { $in: jobIds }, jobType: 'public' });
+      const appliedSet = new Set(apps.map(a => a.jobId));
+      jobsWithStatus = jobs.map(j => ({ ...j.toObject(), applied: appliedSet.has(j._id.toString()) }));
+    }
+
+    res.json({ jobs: jobsWithStatus, total: jobsWithStatus.length, adzunaEnabled: !!(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_ID !== 'your_adzuna_app_id') });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Get learner's applied jobs (MUST BE BEFORE /:type/:id) ──────────────────
+router.get('/my/applications', requireAuth, requireRole('learner'), async (req, res) => {
+  try {
+    const apps = await Application.find({ learnerId: req.userId }).sort({ createdAt: -1 });
+
+    const { default: LearningPath } = await import('../models/LearningPath.js');
+    const enriched = await Promise.all(apps.map(async (app) => {
+      let job = null;
+      try {
+        job = app.jobType === 'public'
+          ? await JobPublic.findById(app.jobId)
+          : await JobEmployer.findById(app.jobId);
+      } catch {}
+
+      let pathId = null;
+      if (app.triggeredTest?.skillName) {
+        const path = await LearningPath.findOne({
+          learnerId: req.userId,
+          skillName: new RegExp(`^${app.triggeredTest.skillName.trim()}$`, 'i'),
+        }).sort({ createdAt: -1 });
+        pathId = path?._id || null;
+      }
+
+      return {
+        ...app.toObject(),
+        pathId,
+        job: job ? {
+          _id: job._id,
+          title: job.title || app.jobTitle,
+          companyName: job.companyName || job.company || app.companyName,
+          location: job.location,
+          description: job.description,
+          requirements: job.requirements || job.extractedSkills || [],
+          salaryMin: job.salaryMin,
+          salaryMax: job.salaryMax,
+          salary: job.salary,
+          remote: job.remote,
+          url: job.url,
+          jobType: job.jobType,
+        } : {
+          title: app.jobTitle,
+          companyName: app.companyName,
+        },
+      };
+    }));
+
+    res.json({ applications: enriched });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -124,14 +199,16 @@ router.post('/:type/:id/apply', requireAuth, requireRole('learner'), async (req,
     const learnerSkills = new Set((profile?.skills || []).map(s => s.skillName.toLowerCase()));
     const jobRequirements = type === 'employer'
       ? job.requirements.filter(r => r.required)
-      : job.extractedSkills.filter(r => r.required);
+      : (job.extractedSkills || []).filter(r => r.required);
 
     const matched = jobRequirements.filter(r => learnerSkills.has(r.skillName.toLowerCase())).length;
     const matchScore = jobRequirements.length ? Math.round((matched / jobRequirements.length) * 100) : 50;
 
-    // Find unverified required skills to trigger a test
+    // Find unverified required skills
     const unverifiedRequired = type === 'employer'
-      ? job.requirements.filter(r => r.required && !profile?.skills.find(s => s.skillName.toLowerCase() === r.skillName.toLowerCase() && s.verified))
+      ? job.requirements.filter(r => r.required && !profile?.skills.find(s =>
+          s.skillName.toLowerCase() === r.skillName.toLowerCase() && s.verified
+        ))
       : [];
 
     const triggersTest = unverifiedRequired.length > 0;

@@ -77,8 +77,8 @@ router.get('/gap', requireAuth, async (req, res) => {
       }
     }
 
-    // Sort by market demand * job count (opportunity score)
-    gaps.sort((a, b) => (b.marketDemand7d * b.jobCount) - (a.marketDemand7d * a.jobCount));
+    // Sort by open job count and market demand (opportunity score)
+    gaps.sort((a, b) => (b.jobCount * 1000 + b.marketDemand7d) - (a.jobCount * 1000 + a.marketDemand7d));
 
     res.json({ gaps: gaps.slice(0, 20) });
   } catch (err) {

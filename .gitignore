@@ -4,6 +4,7 @@ node_modules/
 .pnp.js
 
 # Environment variables - NEVER commit real .env files
+.mongodb-data/
 .env
 .env.local
 .env.development.local

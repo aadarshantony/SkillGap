@@ -9,7 +9,8 @@ const questionSchema = new mongoose.Schema({
 }, { _id: false });
 
 const skillTestSchema = new mongoose.Schema({
-  skillId: { type: mongoose.Schema.Types.ObjectId, ref: 'SkillTaxonomy', required: true },
+  skillId: { type: mongoose.Schema.Types.ObjectId, ref: 'SkillTaxonomy' }, // optional for AI-generated tests
+
   skillName: String,
   proficiencyLevel: { type: String, enum: ['beginner', 'intermediate', 'advanced', 'expert'] },
   questions: [questionSchema],
