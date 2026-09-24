@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { Users, BarChart2, Briefcase, PlusSquare, Award, ChevronRight, CheckCircle, ExternalLink, Zap, X, MapPin, TrendingUp, ArrowUpRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { ScheduleInterviewModal } from './EmployerCalendarPage';
 
 // ─── Employer Dashboard / Overview ───────────────────────────────────────────
 export function EmployerDashboard() {
@@ -44,25 +45,41 @@ export function EmployerDashboard() {
       </div>
 
       {/* Quick actions */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
         <Link to="/employer/post" className="card card-hover" style={{ textDecoration: 'none' }}>
-          <div className="card-body" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <PlusSquare size={20} color="var(--accent)" />
+          <div className="card-body" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <PlusSquare size={18} color="var(--accent)" />
             <div>
-              <div style={{ fontWeight: 600 }}>Post a Job</div>
-              <div style={{ fontSize: '0.8125rem', color: 'var(--text-3)' }}>Add structured skill requirements</div>
+              <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>Post Job</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>Add skill targets</div>
             </div>
-            <ChevronRight size={16} color="var(--text-3)" style={{ marginLeft: 'auto' }} />
           </div>
         </Link>
         <Link to="/employer/applicants" className="card card-hover" style={{ textDecoration: 'none' }}>
-          <div className="card-body" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <Users size={20} color="var(--green)" />
+          <div className="card-body" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <Users size={18} color="var(--green)" />
             <div>
-              <div style={{ fontWeight: 600 }}>View Applicants</div>
-              <div style={{ fontSize: '0.8125rem', color: 'var(--text-3)' }}>See who applied per job</div>
+              <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>Applicants</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>Per-job pipeline</div>
             </div>
-            <ChevronRight size={16} color="var(--text-3)" style={{ marginLeft: 'auto' }} />
+          </div>
+        </Link>
+        <Link to="/employer/jd-tools" className="card card-hover" style={{ textDecoration: 'none' }}>
+          <div className="card-body" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <Zap size={18} color="var(--amber)" />
+            <div>
+              <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>JD AI Tools</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>Quality & Realism</div>
+            </div>
+          </div>
+        </Link>
+        <Link to="/employer/calendar" className="card card-hover" style={{ textDecoration: 'none' }}>
+          <div className="card-body" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <Briefcase size={18} color="var(--blue)" />
+            <div>
+              <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>Calendar</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>Sync interviews</div>
+            </div>
           </div>
         </Link>
       </div>
@@ -360,6 +377,8 @@ export function ApplicantsPage() {
 }
 
 function CandidateDetail({ candidate: c, onClose }) {
+  const [showSchedule, setShowSchedule] = useState(false);
+
   return (
     <div className="card" style={{ position: 'sticky', top: '1.5rem' }}>
       <div className="card-body">
@@ -371,6 +390,13 @@ function CandidateDetail({ candidate: c, onClose }) {
           </div>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
         </div>
+
+        <button className="btn btn-primary btn-sm" style={{ width: '100%', justifyContent: 'center', marginBottom: '1rem' }}
+          onClick={() => setShowSchedule(true)}>
+          📅 Schedule Interview
+        </button>
+
+        {showSchedule && <ScheduleInterviewModal candidate={c} onClose={() => setShowSchedule(false)} />}
 
         <hr className="divider" style={{ marginBottom: '1rem' }} />
 

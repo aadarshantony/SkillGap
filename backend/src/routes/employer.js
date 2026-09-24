@@ -5,7 +5,9 @@ import User from '../models/User.js';
 import Credential from '../models/Credential.js';
 import Application from '../models/Application.js';
 import SkillDemandDaily from '../models/SkillDemandDaily.js';
+import Interview from '../models/Interview.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
+import { analyzeJdQuality, detectJdRequirements, getEmployerRejectionInsights } from '../services/jdAnalyzerService.js';
 
 const router = express.Router();
 
@@ -301,6 +303,110 @@ router.get('/talent', requireAuth, requireRole('employer'), async (req, res) => 
     });
 
     res.json({ talent });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/employer/jd-analyzer — analyze job description quality score
+router.post('/jd-analyzer', requireAuth, requireRole('employer'), async (req, res) => {
+  try {
+    const analysis = await analyzeJdQuality(req.body);
+    res.json(analysis);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/employer/jd-detect-requirements — detect requirements, check realism & generate better JD
+router.post('/jd-detect-requirements', requireAuth, requireRole('employer'), async (req, res) => {
+  try {
+    const result = await detectJdRequirements(req.body);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/employer/rejection-insights — candidate rejection funnel & missing skill insights
+router.get('/rejection-insights', requireAuth, requireRole('employer'), async (req, res) => {
+  try {
+    const insights = await getEmployerRejectionInsights(req.userId);
+    res.json(insights);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/employer/interviews — list employer's scheduled interviews
+router.get('/interviews', requireAuth, requireRole('employer'), async (req, res) => {
+  try {
+    const interviews = await Interview.find({ employerId: req.userId }).sort({ scheduledAt: 1 });
+    res.json({ interviews });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/employer/interviews — schedule interview & generate calendar links
+router.post('/interviews', requireAuth, requireRole('employer'), async (req, res) => {
+  try {
+    const { candidateId, candidateName, candidateEmail, jobId, jobTitle, title, interviewType, scheduledAt, durationMinutes, meetingUrl, notes } = req.body;
+
+    if (!candidateId || !scheduledAt || !title) {
+      return res.status(400).json({ error: 'candidateId, scheduledAt, and title are required' });
+    }
+
+    const interview = await Interview.create({
+      employerId: req.userId,
+      candidateId,
+      candidateName: candidateName || 'Candidate',
+      candidateEmail: candidateEmail || '',
+      jobId: jobId || 'general',
+      jobTitle: jobTitle || 'Position Interview',
+      title,
+      interviewType: interviewType || 'Initial Screening',
+      scheduledAt: new Date(scheduledAt),
+      durationMinutes: durationMinutes || 45,
+      meetingUrl: meetingUrl || '',
+      notes: notes || '',
+    });
+
+    // Helper to format Google Calendar URL
+    const startTimeIso = new Date(scheduledAt).toISOString().replace(/-|:|\.\d\d\d/g, '');
+    const endTimeIso = new Date(new Date(scheduledAt).getTime() + (durationMinutes || 45) * 60000).toISOString().replace(/-|:|\.\d\d\d/g, '');
+    const googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${startTimeIso}/${endTimeIso}&details=${encodeURIComponent(`Interview with ${candidateName} for ${jobTitle}.\nMeeting link: ${meetingUrl}\nNotes: ${notes}`)}&location=${encodeURIComponent(meetingUrl || 'Online Video Call')}`;
+
+    // ICS content generator for Apple/Outlook/Desktop calendars
+    const icsData = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//SkillGap//Employer Calendar//EN',
+      'BEGIN:VEVENT',
+      `SUMMARY:${title}`,
+      `DESCRIPTION:Interview with ${candidateName} for ${jobTitle}. Notes: ${notes}`,
+      `LOCATION:${meetingUrl || 'Online'}`,
+      `DTSTART:${startTimeIso}`,
+      `DTEND:${endTimeIso}`,
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+
+    res.status(201).json({
+      interview,
+      googleCalendarUrl,
+      icsDataUrl: `data:text/calendar;charset=utf8,${encodeURIComponent(icsData)}`,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/employer/interviews/:id — cancel scheduled interview
+router.delete('/interviews/:id', requireAuth, requireRole('employer'), async (req, res) => {
+  try {
+    await Interview.deleteOne({ _id: req.params.id, employerId: req.userId });
+    res.json({ message: 'Interview cancelled successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -33,9 +33,10 @@ export const authApi = {
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
 export const profileApi = {
-  get:         ()       => api.get('/profile'),
-  update:      (data)   => api.put('/profile', data),
-  parseResume: (file)   => {
+  get:                ()       => api.get('/profile'),
+  update:             (data)   => api.put('/profile', data),
+  getRecommendations: ()       => api.get('/profile/recommendations'),
+  parseResume:        (file)   => {
     const form = new FormData();
     form.append('resume', file);
     return api.post('/profile/resume', form, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000 });
@@ -77,10 +78,16 @@ export const credentialsApi = {
 
 // ─── Employer ─────────────────────────────────────────────────────────────────
 export const employerApi = {
-  getMyJobs:        ()        => api.get('/employer/jobs'),
-  getApplicants:    (jobId)   => api.get(`/employer/applicants/${jobId}`),
-  getApplicant:     (jobId, userId) => api.get(`/employer/applicants/${jobId}/candidate/${userId}`),
-  getAnalytics:     ()        => api.get('/employer/analytics'),
-  getTalentPool:    (params)  => api.get('/employer/talent', { params }),
-  updateJob:        (jobId, data) => api.patch(`/employer/jobs/${jobId}`, data),
+  getMyJobs:            ()              => api.get('/employer/jobs'),
+  getApplicants:        (jobId)         => api.get(`/employer/applicants/${jobId}`),
+  getApplicant:         (jobId, userId) => api.get(`/employer/applicants/${jobId}/candidate/${userId}`),
+  getAnalytics:         ()              => api.get('/employer/analytics'),
+  getTalentPool:        (params)        => api.get('/employer/talent', { params }),
+  updateJob:            (jobId, data)   => api.patch(`/employer/jobs/${jobId}`, data),
+  analyzeJd:            (data)          => api.post('/employer/jd-analyzer', data),
+  detectRequirements:   (data)          => api.post('/employer/jd-detect-requirements', data),
+  getRejectionInsights: ()              => api.get('/employer/rejection-insights'),
+  getInterviews:        ()              => api.get('/employer/interviews'),
+  scheduleInterview:    (data)          => api.post('/employer/interviews', data),
+  cancelInterview:      (id)            => api.delete(`/employer/interviews/${id}`),
 };

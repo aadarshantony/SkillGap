@@ -12,6 +12,18 @@ import { parseResume } from '../services/aiService.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router = express.Router();
 
+import { getLearnerRoleRecommendations } from '../services/recommendationService.js';
+
+// GET /api/profile/recommendations — dynamic daily role recommendations for learner
+router.get('/recommendations', requireAuth, requireRole('learner'), async (req, res) => {
+  try {
+    const recommendations = await getLearnerRoleRecommendations(req.userId);
+    res.json(recommendations);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/profile — get own profile
 router.get('/', requireAuth, async (req, res) => {
   try {

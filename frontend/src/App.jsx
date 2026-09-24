@@ -23,6 +23,9 @@ import {
   EmployerAnalyticsPage,
 } from './pages/employer/EmployerPages';
 import TalentSearchPage from './pages/employer/TalentSearchPage';
+import JdToolsPage from './pages/employer/JdToolsPage';
+import RejectionInsightsPage from './pages/employer/RejectionInsightsPage';
+import EmployerCalendarPage from './pages/employer/EmployerCalendarPage';
 
 import PublicVerifyPage from './pages/verify/PublicVerifyPage';
 import { useAuthStore } from './store/authStore';
@@ -97,6 +100,9 @@ export default function App() {
             <Route path="/employer/post-job" element={<EmployerPostJobPage />} />
             <Route path="/employer/applicants" element={<EmployerApplicantsPage />} />
             <Route path="/employer/talent" element={<TalentSearchPage />} />
+            <Route path="/employer/jd-tools" element={<JdToolsPage />} />
+            <Route path="/employer/rejection-insights" element={<RejectionInsightsPage />} />
+            <Route path="/employer/calendar" element={<EmployerCalendarPage />} />
             <Route path="/employer/analytics" element={<EmployerAnalyticsPage />} />
           </Route>
 

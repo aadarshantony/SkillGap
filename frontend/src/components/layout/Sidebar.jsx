@@ -4,7 +4,7 @@ import { useAuthStore } from '../../store/authStore';
 import {
   LayoutDashboard, Briefcase, BookOpen, Award,
   PlusSquare, LogOut, Zap, TrendingUp, ClipboardList,
-  BarChart2, Users, Target, Search, User
+  BarChart2, Users, Target, Search, User, Sparkles, AlertTriangle, Calendar
 } from 'lucide-react';
 
 const learnerNav = [
@@ -13,16 +13,19 @@ const learnerNav = [
   { to: '/applied',        icon: ClipboardList,    label: 'Applied Jobs' },
   { to: '/paths',          icon: BookOpen,          label: 'My Paths' },
   { to: '/credentials',    icon: Award,             label: 'Credentials' },
-  { to: '/readiness',      icon: Target,            label: 'Role Readiness' },
+  { to: '/readiness',      icon: Target,            label: 'Role Recommendations' },
   { to: '/market-pulse',   icon: TrendingUp,        label: 'Market Pulse' },
 ];
 
 const employerNav = [
-  { to: '/employer',           icon: LayoutDashboard, label: 'Overview' },
-  { to: '/employer/post',      icon: PlusSquare,      label: 'Post a Job' },
-  { to: '/employer/applicants',icon: Users,           label: 'Applicants' },
-  { to: '/employer/talent',    icon: Search,          label: 'Talent Pool' },
-  { to: '/employer/analytics', icon: BarChart2,       label: 'Analytics' },
+  { to: '/employer',                    icon: LayoutDashboard, label: 'Overview' },
+  { to: '/employer/post',               icon: PlusSquare,      label: 'Post a Job' },
+  { to: '/employer/applicants',         icon: Users,           label: 'Applicants' },
+  { to: '/employer/talent',             icon: Search,          label: 'Talent Pool' },
+  { to: '/employer/jd-tools',           icon: Sparkles,        label: 'JD Quality & AI' },
+  { to: '/employer/rejection-insights', icon: AlertTriangle,   label: 'Rejection Insights' },
+  { to: '/employer/calendar',           icon: Calendar,        label: 'Interview Calendar' },
+  { to: '/employer/analytics',          icon: BarChart2,       label: 'Analytics' },
 ];
 
 export default function Sidebar() {
