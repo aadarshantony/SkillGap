@@ -499,6 +499,28 @@ export async function seedData() {
     }))
   );
   console.log(`✅ Seeded ${applications.length} applications`);
+
+  // 8. SkillDemandDaily (30 days of market trend data per skill)
+  const demandRecords = [];
+  const now = Date.now();
+  for (const s of SKILLS) {
+    const baseCount = Math.floor(Math.random() * 150) + 120;
+    const sId = skillMap[s.name] || skills[0]._id;
+    for (let day = 30; day >= 0; day--) {
+      const date = new Date(now - day * 24 * 60 * 60 * 1000);
+      const randomNoise = Math.floor(Math.sin(day * 0.5) * 40) + Math.floor(Math.random() * 35);
+      demandRecords.push({
+        skillId: sId,
+        skillName: s.name,
+        date,
+        count: Math.max(30, baseCount + randomNoise),
+        industry: s.industry[0] || 'General',
+      });
+    }
+  }
+  await SkillDemandDaily.insertMany(demandRecords);
+  console.log(`✅ Seeded ${demandRecords.length} daily skill demand trend records`);
+
   console.log('🎉 Multi-industry database seeding completed successfully.');
 }
 

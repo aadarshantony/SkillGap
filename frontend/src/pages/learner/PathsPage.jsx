@@ -18,13 +18,13 @@ export default function PathsPage() {
   const completed = paths.filter(p => p.status === 'completed');
 
   if (isLoading) return (
-    <div style={{ maxWidth: 760 }}>
+    <div style={{ width: '100%' }}>
       {[...Array(3)].map((_, i) => <div key={i} className="skeleton" style={{ height: 100, marginBottom: '0.75rem', borderRadius: 'var(--radius-lg)' }} />)}
     </div>
   );
 
   return (
-    <div className="animate-in" style={{ maxWidth: 760 }}>
+    <div className="animate-in" style={{ width: '100%' }}>
       <div style={{ marginBottom: '2rem' }}>
         <div className="label" style={{ marginBottom: '0.4rem' }}>Learning</div>
         <h1 className="display-lg">My <span className="accent-mark">Paths</span></h1>

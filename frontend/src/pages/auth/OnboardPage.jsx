@@ -98,9 +98,6 @@ export default function OnboardPage() {
       <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
         <div style={{ width: '100%', maxWidth: 560 }} className="animate-in">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem' }}>
-            <div style={{ width: 32, height: 32, background: 'var(--accent)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Zap size={18} color="#0a0a0a" />
-            </div>
             <span className="display-sm" style={{ fontSize: '1.1rem' }}>Skill<span className="accent-mark">Gap</span></span>
           </div>
 
@@ -163,9 +160,6 @@ export default function OnboardPage() {
     <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: '2rem' }}>
       <div style={{ maxWidth: 720, margin: '0 auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem' }}>
-          <div style={{ width: 32, height: 32, background: 'var(--accent)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Zap size={18} color="#0a0a0a" />
-          </div>
           <span className="display-sm" style={{ fontSize: '1.1rem' }}>Skill<span className="accent-mark">Gap</span></span>
         </div>
 

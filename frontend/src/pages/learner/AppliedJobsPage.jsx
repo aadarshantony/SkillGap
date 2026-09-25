@@ -149,7 +149,7 @@ export default function AppliedJobsPage() {
   };
 
   return (
-    <div className="animate-in" style={{ maxWidth: 880 }}>
+    <div className="animate-in" style={{ width: '100%' }}>
       {selected && <JobDetailModal app={selected} onClose={() => setSelected(null)} onOpenTest={handleOpenTest} />}
 
       <div style={{ marginBottom: '2rem' }}>

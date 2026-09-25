@@ -4,7 +4,7 @@ import { useAuthStore } from '../../store/authStore';
 import {
   LayoutDashboard, Briefcase, BookOpen, Award,
   PlusSquare, LogOut, Zap, TrendingUp, ClipboardList,
-  BarChart2, Users, Target, Search, User, Sparkles, AlertTriangle, Calendar
+  BarChart2, Users, Target, Search, User, Sparkles, AlertTriangle, Calendar, X
 } from 'lucide-react';
 
 const learnerNav = [
@@ -28,37 +28,46 @@ const employerNav = [
   { to: '/employer/analytics',          icon: BarChart2,       label: 'Analytics' },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const nav = user?.role === 'employer' ? employerNav : learnerNav;
 
   const handleLogout = () => {
     logout();
+    if (onClose) onClose();
     navigate('/login');
   };
 
   return (
-    <aside className="sidebar">
-      {/* Logo */}
-      <div style={{ padding: '1.5rem 1.25rem', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Zap size={18} color="var(--accent)" />
-          <span className="display-sm" style={{ color: 'var(--text)', fontSize: '1rem' }}>
-            Skill<span className="accent-mark">Gap</span>
-          </span>
+    <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+      {/* Logo Header */}
+      <div style={{ padding: '1.25rem 1.25rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span className="display-sm" style={{ color: 'var(--text)', fontSize: '1rem' }}>
+              Skill<span className="accent-mark">Gap</span>
+            </span>
+          </div>
+          <div style={{ marginTop: '0.2rem', fontSize: '0.72rem', color: 'var(--text-3)' }}>
+            {user?.role === 'employer' ? 'Employer Portal' : 'Learner Portal'}
+          </div>
         </div>
-        <div style={{ marginTop: '0.3rem', fontSize: '0.75rem', color: 'var(--text-3)' }}>
-          {user?.role === 'employer' ? 'Employer Portal' : 'Learner Portal'}
-        </div>
+
+        {/* Mobile close button */}
+        {onClose && (
+          <button className="btn btn-ghost btn-xs" onClick={onClose} style={{ color: 'var(--text-3)' }}>
+            <X size={18} />
+          </button>
+        )}
       </div>
 
-      {/* User chip */}
-      <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      {/* User Chip */}
+      <div style={{ padding: '0.85rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--surface-2)' }}>
+        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {user?.name}
         </div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {user?.email}
         </div>
       </div>
@@ -70,6 +79,7 @@ export default function Sidebar() {
             key={to}
             to={to}
             end={to === '/dashboard' || to === '/employer'}
+            onClick={() => { if (onClose) onClose(); }}
             className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >
             <Icon size={16} />

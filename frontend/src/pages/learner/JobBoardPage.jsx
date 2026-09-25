@@ -206,7 +206,7 @@ export default function JobBoardPage() {
     : jobs;
 
   return (
-    <div className="animate-in" style={{ maxWidth: 900 }}>
+    <div className="animate-in" style={{ width: '100%' }}>
       {selectedJob && (
         <JobModal
           job={selectedJob}

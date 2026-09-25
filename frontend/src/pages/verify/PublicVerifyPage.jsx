@@ -60,9 +60,6 @@ export default function PublicVerifyPage() {
         {/* Header Branding */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-            <div style={{ width: 36, height: 36, background: 'var(--color-accent)', color: '#000', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-              SG
-            </div>
             <span style={{ fontFamily: 'var(--font-display)', fontSize: '24px', letterSpacing: '0.05em', color: '#fff', fontWeight: 700 }}>
               SKILLGAP <span style={{ color: 'var(--color-accent)', fontSize: '14px' }}>VERIFY</span>
             </span>

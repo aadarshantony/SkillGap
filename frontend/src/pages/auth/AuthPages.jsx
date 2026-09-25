@@ -19,9 +19,6 @@ const Card = ({ children, wide }) => (
 
 const Logo = () => (
   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.75rem' }}>
-    <div style={{ width: 32, height: 32, background: 'var(--accent)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <Zap size={18} color="#0a0a0a" />
-    </div>
     <span className="display-sm" style={{ color: 'var(--text)', fontSize: '1.1rem' }}>Skill<span className="accent-mark">Gap</span></span>
   </div>
 );

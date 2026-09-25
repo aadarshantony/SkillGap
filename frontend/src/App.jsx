@@ -27,6 +27,7 @@ import JdToolsPage from './pages/employer/JdToolsPage';
 import RejectionInsightsPage from './pages/employer/RejectionInsightsPage';
 import EmployerCalendarPage from './pages/employer/EmployerCalendarPage';
 
+import LandingPage from './pages/LandingPage';
 import PublicVerifyPage from './pages/verify/PublicVerifyPage';
 import { useAuthStore } from './store/authStore';
 
@@ -38,13 +39,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-function HomeRedirect() {
-  const { user } = useAuthStore();
-  if (!user) return <Navigate to="/login" replace />;
-  if (user.role === 'employer') return <Navigate to="/employer" replace />;
-  return <Navigate to="/dashboard" replace />;
-}
 
 export default function App() {
   return (
@@ -70,17 +64,16 @@ export default function App() {
         />
 
         <Routes>
-          {/* Public Routes */}
+          {/* Public Landing Page */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/landing" element={<LandingPage />} />
+
+          {/* Public Authentication & Verification */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/verify/:credId" element={<PublicVerifyPage />} />
-          <Route path="/credentials/verify/:credId" element={<PublicVerifyPage />} />
-
           {/* Onboarding Flow */}
           <Route path="/onboard" element={<OnboardPage />} />
-
-          {/* Home Redirect */}
-          <Route path="/" element={<HomeRedirect />} />
 
           {/* App Shell (Protected) */}
           <Route element={<AppLayout />}>

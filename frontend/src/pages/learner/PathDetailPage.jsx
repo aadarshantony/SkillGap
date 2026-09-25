@@ -242,7 +242,7 @@ export default function PathDetailPage() {
   });
 
   if (isLoading) return (
-    <div className="animate-in" style={{ maxWidth: 760 }}>
+    <div className="animate-in" style={{ width: '100%' }}>
       {[...Array(5)].map((_, i) => <div key={i} className="skeleton" style={{ height: 90, marginBottom: '0.75rem', borderRadius: 'var(--radius-lg)' }} />)}
     </div>
   );
@@ -271,7 +271,7 @@ export default function PathDetailPage() {
   };
 
   return (
-    <div className="animate-in" style={{ maxWidth: 760 }}>
+    <div className="animate-in" style={{ width: '100%' }}>
       {showTest && (
         <TestModal
           pathId={id}
